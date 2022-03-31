@@ -10,7 +10,7 @@ import android.widget.SeekBar
 import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
 import io.legado.app.databinding.DialogAutoReadBinding
-import io.legado.app.help.ReadBookConfig
+import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.lib.theme.bottomBackground
 import io.legado.app.lib.theme.getPrimaryTextColor
 import io.legado.app.model.ReadAloud
@@ -30,15 +30,15 @@ class AutoReadDialog : BaseDialogFragment(R.layout.dialog_auto_read) {
 
     override fun onStart() {
         super.onStart()
-        dialog?.window?.let {
-            it.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-            it.setBackgroundDrawableResource(R.color.background)
-            it.decorView.setPadding(0, 0, 0, 0)
-            val attr = it.attributes
+        dialog?.window?.run {
+            clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            setBackgroundDrawableResource(R.color.background)
+            decorView.setPadding(0, 0, 0, 0)
+            val attr = attributes
             attr.dimAmount = 0.0f
             attr.gravity = Gravity.BOTTOM
-            it.attributes = attr
-            it.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            attributes = attr
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
     }
 

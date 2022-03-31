@@ -2,16 +2,13 @@ package io.legado.app.data.entities
 
 import android.util.Base64
 import io.legado.app.constant.AppConst
+import io.legado.app.constant.AppLog
 import io.legado.app.data.entities.rule.RowUi
-import io.legado.app.help.AppConfig
 import io.legado.app.help.CacheManager
 import io.legado.app.help.JsExtensions
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.http.CookieStore
-import io.legado.app.utils.EncoderUtils
-import io.legado.app.utils.GSON
-import io.legado.app.utils.fromJsonArray
-import io.legado.app.utils.fromJsonObject
-import timber.log.Timber
+import io.legado.app.utils.*
 import javax.script.SimpleBindings
 
 /**
@@ -29,8 +26,15 @@ interface BaseSource : JsExtensions {
 
     fun getKey(): String
 
+    override fun getSource(): BaseSource? {
+        return this
+    }
+
     fun loginUi(): List<RowUi>? {
-        return GSON.fromJsonArray(loginUi)
+        return GSON.fromJsonArray<RowUi>(loginUi)
+            .onFailure {
+                it.printOnDebug()
+            }.getOrNull()
     }
 
     fun getLoginJs(): String? {
@@ -64,7 +68,7 @@ interface BaseSource : JsExtensions {
                         evalJS(it.substring(4, it.lastIndexOf("<"))).toString()
                     else -> it
                 }
-            )?.let { map ->
+            ).getOrNull()?.let { map ->
                 putAll(map)
             }
         }
@@ -84,7 +88,7 @@ interface BaseSource : JsExtensions {
 
     fun getLoginHeaderMap(): Map<String, String>? {
         val cache = getLoginHeader() ?: return null
-        return GSON.fromJsonObject(cache)
+        return GSON.fromJsonObject<Map<String, String>>(cache).getOrNull()
     }
 
     /**
@@ -111,13 +115,13 @@ interface BaseSource : JsExtensions {
                 ?: return null
             return String(decodeBytes)
         } catch (e: Exception) {
-            Timber.e(e)
+            AppLog.put("获取登陆信息出错", e)
             return null
         }
     }
 
     fun getLoginInfoMap(): Map<String, String>? {
-        return GSON.fromJsonObject(getLoginInfo())
+        return GSON.fromJsonObject<Map<String, String>>(getLoginInfo()).getOrNull()
     }
 
     /**
@@ -131,7 +135,7 @@ interface BaseSource : JsExtensions {
             CacheManager.put("userInfo_${getKey()}", encodeStr)
             true
         } catch (e: Exception) {
-            Timber.e(e)
+            AppLog.put("保存登陆信息出错", e)
             false
         }
     }

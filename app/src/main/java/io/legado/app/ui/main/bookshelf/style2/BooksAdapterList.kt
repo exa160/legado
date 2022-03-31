@@ -10,7 +10,7 @@ import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookGroup
 import io.legado.app.databinding.ItemBookshelfListBinding
 import io.legado.app.databinding.ItemBookshelfListGroupBinding
-import io.legado.app.help.AppConfig
+import io.legado.app.help.config.AppConfig
 import io.legado.app.utils.gone
 import io.legado.app.utils.invisible
 import io.legado.app.utils.visible
@@ -18,14 +18,6 @@ import splitties.views.onLongClick
 
 class BooksAdapterList(context: Context, callBack: CallBack) :
     BaseBooksAdapter<RecyclerView.ViewHolder>(context, callBack) {
-
-    override fun getItemCount(): Int {
-        return callBack.getItemCount()
-    }
-
-    override fun getItemViewType(position: Int): Int {
-        return callBack.getItemType(position)
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return when (viewType) {
@@ -65,7 +57,7 @@ class BooksAdapterList(context: Context, callBack: CallBack) :
 
     private fun onBindBook(binding: ItemBookshelfListBinding, position: Int, bundle: Bundle) {
         binding.run {
-            val item = callBack.getItem(position) as Book
+            val item = callBack.getItem(position) as? Book ?: return
             tvRead.text = item.durChapterTitle
             tvLast.text = item.latestChapterTitle
             bundle.keySet().forEach {

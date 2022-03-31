@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
+import androidx.fragment.app.activityViewModels
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import io.legado.app.R
@@ -13,8 +14,7 @@ import io.legado.app.base.BasePreferenceFragment
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
 import io.legado.app.databinding.DialogEditTextBinding
-import io.legado.app.help.AppConfig
-import io.legado.app.help.BookHelp
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.CheckSource
@@ -29,6 +29,7 @@ import splitties.init.appCtx
 class OtherConfigFragment : BasePreferenceFragment(),
     SharedPreferences.OnSharedPreferenceChangeListener {
 
+    private val viewModel by activityViewModels<ConfigViewModel>()
     private val packageManager = appCtx.packageManager
     private val componentName = ComponentName(
         appCtx,
@@ -185,9 +186,7 @@ class OtherConfigFragment : BasePreferenceFragment(),
             messageResource = R.string.sure_del
         ) {
             okButton {
-                BookHelp.clearCache()
-                FileUtils.deleteFile(requireActivity().cacheDir.absolutePath)
-                toastOnUi(R.string.clear_cache_success)
+                viewModel.clearCache()
             }
             noButton()
         }

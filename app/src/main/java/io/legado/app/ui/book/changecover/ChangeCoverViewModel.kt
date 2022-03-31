@@ -10,7 +10,7 @@ import io.legado.app.constant.AppPattern
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.SearchBook
-import io.legado.app.help.AppConfig
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.CompositeCoroutine
 import io.legado.app.model.webBook.WebBook
 import kotlinx.coroutines.Dispatchers.IO
@@ -35,16 +35,16 @@ class ChangeCoverViewModel(application: Application) : BaseViewModel(application
     val dataFlow = callbackFlow<List<SearchBook>> {
         val searchBooks = Collections.synchronizedList(arrayListOf<SearchBook>())
 
-        searchSuccess = {
-            if (!searchBooks.contains(it)) {
-                searchBooks.add(it)
-                trySend(ArrayList(searchBooks))
+        searchSuccess = { searchBook ->
+            if (!searchBooks.contains(searchBook)) {
+                searchBooks.add(searchBook)
+                trySend(searchBooks.sortedBy { it.originOrder })
             }
         }
 
         appDb.searchBookDao.getEnableHasCover(name, author).let {
             searchBooks.addAll(it)
-            trySend(ArrayList(searchBooks))
+            trySend(searchBooks.toList())
         }
 
         if (searchBooks.size <= 1) {

@@ -19,9 +19,9 @@ import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
 import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.databinding.DialogImageBlurringBinding
-import io.legado.app.help.AppConfig
 import io.legado.app.help.LauncherIconHelp
-import io.legado.app.help.ThemeConfig
+import io.legado.app.help.config.AppConfig
+import io.legado.app.help.config.ThemeConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.theme.primaryColor
@@ -29,6 +29,7 @@ import io.legado.app.ui.widget.number.NumberPickerDialog
 import io.legado.app.ui.widget.prefs.ColorPreference
 import io.legado.app.ui.widget.seekbar.SeekBarChangeListener
 import io.legado.app.utils.*
+import java.io.FileOutputStream
 
 
 @Suppress("SameParameterValue")
@@ -54,6 +55,9 @@ class ThemeConfigFragment : BasePreferenceFragment(),
         addPreferencesFromResource(R.xml.pref_config_theme)
         if (Build.VERSION.SDK_INT < 26) {
             preferenceScreen.removePreferenceRecursively(PreferKey.launcherIcon)
+        }
+        if (!AppConfig.isGooglePlay) {
+            preferenceScreen.removePreferenceRecursively("welcomeStyle")
         }
         upPreferenceSummary(PreferKey.bgImage, getPrefString(PreferKey.bgImage))
         upPreferenceSummary(PreferKey.bgImageN, getPrefString(PreferKey.bgImageN))
@@ -175,6 +179,8 @@ class ThemeConfigFragment : BasePreferenceFragment(),
             "saveNightTheme" -> alertSaveTheme(key)
             "coverConfig" -> (activity as? ConfigActivity)
                 ?.replaceFragment<CoverConfigFragment>(ConfigTag.COVER_CONFIG)
+            "welcomeStyle" -> (activity as? ConfigActivity)
+                ?.replaceFragment<WelcomeConfigFragment>(ConfigTag.WELCOME_CONFIG)
         }
         return super.onPreferenceTreeClick(preference)
     }
@@ -293,10 +299,12 @@ class ThemeConfigFragment : BasePreferenceFragment(),
     }
 
     private fun setBgFromUri(uri: Uri, preferenceKey: String, success: () -> Unit) {
-        readUri(uri) { name, bytes ->
+        readUri(uri) { fileDoc, inputStream ->
             var file = requireContext().externalFiles
-            file = FileUtils.createFileIfNotExist(file, preferenceKey, name)
-            file.writeBytes(bytes)
+            file = FileUtils.createFileIfNotExist(file, preferenceKey, fileDoc.name)
+            FileOutputStream(file).use {
+                inputStream.copyTo(it)
+            }
             putPrefString(preferenceKey, file.absolutePath)
             success()
         }

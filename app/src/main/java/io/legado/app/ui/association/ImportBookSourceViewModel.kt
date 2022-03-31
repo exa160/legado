@@ -8,15 +8,14 @@ import io.legado.app.base.BaseViewModel
 import io.legado.app.constant.AppPattern
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.BookSource
-import io.legado.app.help.AppConfig
+import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.ContentProcessor
 import io.legado.app.help.SourceHelp
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.http.newCallResponseBody
 import io.legado.app.help.http.okHttpClient
-import io.legado.app.help.http.text
-import io.legado.app.model.NoStackTraceException
 import io.legado.app.utils.*
-import timber.log.Timber
+
 
 class ImportBookSourceViewModel(app: Application) : BaseViewModel(app) {
     var isAddGroup = false
@@ -98,13 +97,12 @@ class ImportBookSourceViewModel(app: Application) : BaseViewModel(app) {
                             importSourceUrl(it)
                         }
                     } else {
-                        BookSource.fromJson(mText)?.let {
+                        BookSource.fromJson(mText).getOrThrow().let {
                             allSources.add(it)
                         }
                     }
                 }
-                mText.isJsonArray() -> {
-                    val items = BookSource.fromJsonArray(mText)
+                mText.isJsonArray() -> BookSource.fromJsonArray(mText).getOrThrow().let { items ->
                     allSources.addAll(items)
                 }
                 mText.isAbsUrl() -> {
@@ -113,7 +111,7 @@ class ImportBookSourceViewModel(app: Application) : BaseViewModel(app) {
                 else -> throw NoStackTraceException(context.getString(R.string.wrong_format))
             }
         }.onError {
-            Timber.e(it)
+            it.printOnDebug()
             errorLiveData.postValue(it.localizedMessage ?: "")
         }.onSuccess {
             comparisonSource()
@@ -123,26 +121,8 @@ class ImportBookSourceViewModel(app: Application) : BaseViewModel(app) {
     private suspend fun importSourceUrl(url: String) {
         okHttpClient.newCallResponseBody {
             url(url)
-        }.text("utf-8").let { body ->
-            when {
-                body.isJsonArray() -> {
-                    val items: List<Map<String, Any>> = jsonPath.parse(body).read("$")
-                    for (item in items) {
-                        val jsonItem = jsonPath.parse(item)
-                        BookSource.fromJson(jsonItem.jsonString())?.let { source ->
-                            allSources.add(source)
-                        }
-                    }
-                }
-                body.isJsonObject() -> {
-                    BookSource.fromJson(body)?.let {
-                        allSources.add(it)
-                    }
-                }
-                else -> {
-                    throw NoStackTraceException(context.getString(R.string.wrong_format))
-                }
-            }
+        }.byteStream().let {
+            allSources.addAll(BookSource.fromJsonArray(it).getOrThrow())
         }
     }
 

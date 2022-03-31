@@ -16,8 +16,8 @@ import io.legado.app.R
 import io.legado.app.constant.AppConst
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.Theme
-import io.legado.app.help.AppConfig
-import io.legado.app.help.ThemeConfig
+import io.legado.app.help.config.AppConfig
+import io.legado.app.help.config.ThemeConfig
 import io.legado.app.lib.theme.ThemeStore
 import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.lib.theme.primaryColor
@@ -67,8 +67,9 @@ abstract class BaseActivity<VB : ViewBinding>(
         window.decorView.disableAutoFill()
         initTheme()
         super.onCreate(savedInstanceState)
-        setContentView(binding.root)
         setupSystemBar()
+        setContentView(binding.root)
+        upBackgroundImage()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             findViewById<TitleBar>(R.id.title_bar)
                 ?.onMultiWindowModeChanged(isInMultiWindowMode, fullScreen)
@@ -121,7 +122,7 @@ abstract class BaseActivity<VB : ViewBinding>(
 
     open fun onCompatOptionsItemSelected(item: MenuItem) = super.onOptionsItemSelected(item)
 
-    private fun initTheme() {
+    open fun initTheme() {
         when (theme) {
             Theme.Transparent -> setTheme(R.style.AppTheme_Transparent)
             Theme.Dark -> {
@@ -141,9 +142,12 @@ abstract class BaseActivity<VB : ViewBinding>(
                 window.decorView.applyBackgroundTint(backgroundColor)
             }
         }
+    }
+
+    open fun upBackgroundImage() {
         if (imageBg) {
             try {
-                ThemeConfig.getBgImage(this, windowSize)?.let {
+                ThemeConfig.getBgImage(this, windowManager.windowSize)?.let {
                     window.decorView.background = BitmapDrawable(resources, it)
                 }
             } catch (e: OutOfMemoryError) {
@@ -154,7 +158,7 @@ abstract class BaseActivity<VB : ViewBinding>(
         }
     }
 
-    private fun setupSystemBar() {
+    open fun setupSystemBar() {
         if (fullScreen && !isInMultiWindow) {
             fullScreen()
         }

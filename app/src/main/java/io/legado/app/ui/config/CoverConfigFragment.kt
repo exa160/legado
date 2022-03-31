@@ -14,6 +14,7 @@ import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.BookCover
 import io.legado.app.ui.widget.prefs.SwitchPreference
 import io.legado.app.utils.*
+import java.io.FileOutputStream
 
 class CoverConfigFragment : BasePreferenceFragment(),
     SharedPreferences.OnSharedPreferenceChangeListener {
@@ -83,13 +84,19 @@ class CoverConfigFragment : BasePreferenceFragment(),
     @SuppressLint("PrivateResource")
     override fun onPreferenceTreeClick(preference: Preference): Boolean {
         when (preference.key) {
+            "coverRule" -> showDialogFragment(CoverRuleConfigDialog())
             PreferKey.defaultCover ->
-                if (getPrefString(PreferKey.defaultCover).isNullOrEmpty()) {
+                if (getPrefString(preference.key).isNullOrEmpty()) {
                     selectImage.launch(requestCodeCover)
                 } else {
-                    context?.selector(items = arrayListOf("删除图片", "选择图片")) { _, i ->
+                    context?.selector(
+                        items = arrayListOf(
+                            getString(R.string.delete),
+                            getString(R.string.select_image)
+                        )
+                    ) { _, i ->
                         if (i == 0) {
-                            removePref(PreferKey.defaultCover)
+                            removePref(preference.key)
                             BookCover.upDefaultCover()
                         } else {
                             selectImage.launch(requestCodeCover)
@@ -97,12 +104,17 @@ class CoverConfigFragment : BasePreferenceFragment(),
                     }
                 }
             PreferKey.defaultCoverDark ->
-                if (getPrefString(PreferKey.defaultCoverDark).isNullOrEmpty()) {
+                if (getPrefString(preference.key).isNullOrEmpty()) {
                     selectImage.launch(requestCodeCoverDark)
                 } else {
-                    context?.selector(items = arrayListOf("删除图片", "选择图片")) { _, i ->
+                    context?.selector(
+                        items = arrayListOf(
+                            getString(R.string.delete),
+                            getString(R.string.select_image)
+                        )
+                    ) { _, i ->
                         if (i == 0) {
-                            removePref(PreferKey.defaultCoverDark)
+                            removePref(preference.key)
                             BookCover.upDefaultCover()
                         } else {
                             selectImage.launch(requestCodeCoverDark)
@@ -127,10 +139,12 @@ class CoverConfigFragment : BasePreferenceFragment(),
     }
 
     private fun setCoverFromUri(preferenceKey: String, uri: Uri) {
-        readUri(uri) { name, bytes ->
+        readUri(uri) { fileDoc, inputStream ->
             var file = requireContext().externalFiles
-            file = FileUtils.createFileIfNotExist(file, "covers", name)
-            file.writeBytes(bytes)
+            file = FileUtils.createFileIfNotExist(file, "covers", fileDoc.name)
+            FileOutputStream(file).use {
+                inputStream.copyTo(it)
+            }
             putPrefString(preferenceKey, file.absolutePath)
             BookCover.upDefaultCover()
         }

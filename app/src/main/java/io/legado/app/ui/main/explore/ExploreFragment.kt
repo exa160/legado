@@ -18,7 +18,7 @@ import io.legado.app.constant.AppPattern
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.BookSource
 import io.legado.app.databinding.FragmentExploreBinding
-import io.legado.app.help.AppConfig
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.lib.theme.primaryTextColor
 import io.legado.app.ui.book.explore.ExploreShowActivity
@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
  */
 class ExploreFragment : VMBaseFragment<ExploreViewModel>(R.layout.fragment_explore),
     ExploreAdapter.CallBack {
+
     override val viewModel by viewModels<ExploreViewModel>()
     private val binding by viewBinding(FragmentExploreBinding::bind)
     private val adapter by lazy { ExploreAdapter(requireContext(), this) }

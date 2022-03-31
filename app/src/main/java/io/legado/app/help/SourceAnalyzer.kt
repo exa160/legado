@@ -3,11 +3,14 @@ package io.legado.app.help
 import androidx.annotation.Keep
 import com.jayway.jsonpath.JsonPath
 import io.legado.app.constant.AppConst
+import io.legado.app.constant.AppLog
 import io.legado.app.constant.BookType
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.rule.*
+import io.legado.app.exception.NoStackTraceException
 import io.legado.app.utils.*
-import timber.log.Timber
+import java.io.InputStream
+
 import java.util.regex.Pattern
 
 @Suppress("RegExpRedundantEscape")
@@ -15,32 +18,66 @@ object SourceAnalyzer {
     private val headerPattern = Pattern.compile("@Header:\\{.+?\\}", Pattern.CASE_INSENSITIVE)
     private val jsPattern = Pattern.compile("\\{\\{.+?\\}\\}", Pattern.CASE_INSENSITIVE)
 
-    fun jsonToBookSources(json: String): List<BookSource> {
-        val bookSources = mutableListOf<BookSource>()
-        if (json.isJsonArray()) {
-            val items: List<Map<String, Any>> = jsonPath.parse(json).read("$")
-            for (item in items) {
+    fun jsonToBookSources(json: String): Result<MutableList<BookSource>> {
+        return kotlin.runCatching {
+            val bookSources = mutableListOf<BookSource>()
+            when {
+                json.isJsonArray() -> {
+                    val items: List<Map<String, Any>> = jsonPath.parse(json).read("$")
+                    for (item in items) {
+                        val jsonItem = jsonPath.parse(item)
+                        jsonToBookSource(jsonItem.jsonString()).getOrThrow().let {
+                            bookSources.add(it)
+                        }
+                    }
+                }
+                json.isJsonObject() -> {
+                    jsonToBookSource(json).getOrThrow().let {
+                        bookSources.add(it)
+                    }
+                }
+                else -> {
+                    throw NoStackTraceException("格式不对")
+                }
+            }
+            bookSources
+        }
+    }
+
+    fun jsonToBookSources(inputStream: InputStream): Result<MutableList<BookSource>> {
+        return kotlin.runCatching {
+            val bookSources = mutableListOf<BookSource>()
+            kotlin.runCatching {
+                val items: List<Map<String, Any>> = jsonPath.parse(inputStream).read("$")
+                for (item in items) {
+                    val jsonItem = jsonPath.parse(item)
+                    jsonToBookSource(jsonItem.jsonString()).getOrThrow().let {
+                        bookSources.add(it)
+                    }
+                }
+            }.onFailure {
+                val item: Map<String, Any> = jsonPath.parse(inputStream).read("$")
                 val jsonItem = jsonPath.parse(item)
-                jsonToBookSource(jsonItem.jsonString())?.let {
+                jsonToBookSource(jsonItem.jsonString()).getOrThrow().let {
                     bookSources.add(it)
                 }
             }
+            bookSources
         }
-        return bookSources
     }
 
-    fun jsonToBookSource(json: String): BookSource? {
+    fun jsonToBookSource(json: String): Result<BookSource> {
         val source = BookSource()
-        val sourceAny = try {
-            GSON.fromJsonObject<BookSourceAny>(json.trim())
-        } catch (e: Exception) {
-            null
-        }
-        try {
+        val sourceAny = GSON.fromJsonObject<BookSourceAny>(json.trim())
+            .onFailure {
+                AppLog.put("转化书源出错", it)
+            }.getOrNull()
+        return kotlin.runCatching {
             if (sourceAny?.ruleToc == null) {
                 source.apply {
                     val jsonItem = jsonPath.parse(json.trim())
-                    bookSourceUrl = jsonItem.readString("bookSourceUrl") ?: return null
+                    bookSourceUrl = jsonItem.readString("bookSourceUrl")
+                        ?: throw NoStackTraceException("格式不对")
                     bookSourceName = jsonItem.readString("bookSourceName") ?: ""
                     bookSourceGroup = jsonItem.readString("bookSourceGroup")
                     loginUrl = jsonItem.readString("loginUrl")
@@ -132,36 +169,44 @@ object SourceAnalyzer {
                 source.weight = sourceAny.weight
                 source.exploreUrl = sourceAny.exploreUrl
                 source.ruleExplore = if (sourceAny.ruleExplore is String) {
-                    GSON.fromJsonObject(sourceAny.ruleExplore.toString())
+                    GSON.fromJsonObject<ExploreRule>(sourceAny.ruleExplore.toString())
+                        .getOrNull()
                 } else {
-                    GSON.fromJsonObject(GSON.toJson(sourceAny.ruleExplore))
+                    GSON.fromJsonObject<ExploreRule>(GSON.toJson(sourceAny.ruleExplore))
+                        .getOrNull()
                 }
                 source.searchUrl = sourceAny.searchUrl
                 source.ruleSearch = if (sourceAny.ruleSearch is String) {
-                    GSON.fromJsonObject(sourceAny.ruleSearch.toString())
+                    GSON.fromJsonObject<SearchRule>(sourceAny.ruleSearch.toString())
+                        .getOrNull()
                 } else {
-                    GSON.fromJsonObject(GSON.toJson(sourceAny.ruleSearch))
+                    GSON.fromJsonObject<SearchRule>(GSON.toJson(sourceAny.ruleSearch))
+                        .getOrNull()
                 }
                 source.ruleBookInfo = if (sourceAny.ruleBookInfo is String) {
-                    GSON.fromJsonObject(sourceAny.ruleBookInfo.toString())
+                    GSON.fromJsonObject<BookInfoRule>(sourceAny.ruleBookInfo.toString())
+                        .getOrNull()
                 } else {
-                    GSON.fromJsonObject(GSON.toJson(sourceAny.ruleBookInfo))
+                    GSON.fromJsonObject<BookInfoRule>(GSON.toJson(sourceAny.ruleBookInfo))
+                        .getOrNull()
                 }
                 source.ruleToc = if (sourceAny.ruleToc is String) {
-                    GSON.fromJsonObject(sourceAny.ruleToc.toString())
+                    GSON.fromJsonObject<TocRule>(sourceAny.ruleToc.toString())
+                        .getOrNull()
                 } else {
-                    GSON.fromJsonObject(GSON.toJson(sourceAny.ruleToc))
+                    GSON.fromJsonObject<TocRule>(GSON.toJson(sourceAny.ruleToc))
+                        .getOrNull()
                 }
                 source.ruleContent = if (sourceAny.ruleContent is String) {
-                    GSON.fromJsonObject(sourceAny.ruleContent.toString())
+                    GSON.fromJsonObject<ContentRule>(sourceAny.ruleContent.toString())
+                        .getOrNull()
                 } else {
-                    GSON.fromJsonObject(GSON.toJson(sourceAny.ruleContent))
+                    GSON.fromJsonObject<ContentRule>(GSON.toJson(sourceAny.ruleContent))
+                        .getOrNull()
                 }
             }
-        } catch (e: Exception) {
-            Timber.e(e)
+            source
         }
-        return source
     }
 
     @Keep

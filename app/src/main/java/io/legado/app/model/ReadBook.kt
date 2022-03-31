@@ -4,10 +4,10 @@ import io.legado.app.constant.AppLog
 import io.legado.app.constant.BookType
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.*
-import io.legado.app.help.AppConfig
 import io.legado.app.help.BookHelp
 import io.legado.app.help.ContentProcessor
-import io.legado.app.help.ReadBookConfig
+import io.legado.app.help.config.AppConfig
+import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.storage.AppWebDav
 import io.legado.app.model.webBook.WebBook
@@ -16,14 +16,12 @@ import io.legado.app.ui.book.read.page.entities.TextChapter
 import io.legado.app.ui.book.read.page.provider.ChapterProvider
 import io.legado.app.ui.book.read.page.provider.ImageProvider
 import io.legado.app.utils.msg
-
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import splitties.init.appCtx
-import timber.log.Timber
 
 
 @Suppress("MemberVisibilityCanBePrivate")
@@ -378,7 +376,7 @@ object ReadBook : CoroutineScope by MainScope() {
                 }
             }
         }.onError {
-            Timber.e(it)
+            AppLog.put("ChapterProvider ERROR", it)
             appCtx.toastOnUi("ChapterProvider ERROR:\n${it.msg}")
         }.onSuccess {
             success?.invoke()
@@ -422,7 +420,9 @@ object ReadBook : CoroutineScope by MainScope() {
                 book.durChapterIndex = durChapterIndex
                 book.durChapterPos = durChapterPos
                 appDb.bookChapterDao.getChapter(book.bookUrl, durChapterIndex)?.let {
-                    book.durChapterTitle = it.title
+                    book.durChapterTitle = it.getDisplayTitle(
+                        ContentProcessor.get(book.name, book.origin).getTitleReplaceRules()
+                    )
                 }
                 appDb.bookDao.update(book)
             }

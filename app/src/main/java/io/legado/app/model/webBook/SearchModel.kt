@@ -5,7 +5,7 @@ import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.SearchBook
-import io.legado.app.help.AppConfig
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.CompositeCoroutine
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefString
@@ -62,6 +62,7 @@ class SearchModel(private val scope: CoroutineScope) {
             searchPage = 1
             val searchGroup = appCtx.getPrefString("searchGroup") ?: ""
             bookSourceList.clear()
+            searchBooks.clear()
             callBack?.onSearchSuccess(searchBooks)
             if (searchGroup.isBlank()) {
                 bookSourceList.addAll(appDb.bookSourceDao.allEnabled)
@@ -127,7 +128,7 @@ class SearchModel(private val scope: CoroutineScope) {
         if (searchIndex >= bookSourceList.lastIndex
             + min(bookSourceList.size, threadCount)
         ) {
-            callBack?.onSearchFinish()
+            callBack?.onSearchFinish(searchBooks.isEmpty())
         }
     }
 
@@ -193,6 +194,7 @@ class SearchModel(private val scope: CoroutineScope) {
             if (!precision) {
                 equalData.addAll(otherData)
             }
+            if (!scope.isActive) return
             searchBooks = equalData
         }
     }
@@ -212,7 +214,7 @@ class SearchModel(private val scope: CoroutineScope) {
     interface CallBack {
         fun onSearchStart()
         fun onSearchSuccess(searchBooks: ArrayList<SearchBook>)
-        fun onSearchFinish()
+        fun onSearchFinish(isEmpty: Boolean)
         fun onSearchCancel()
     }
 

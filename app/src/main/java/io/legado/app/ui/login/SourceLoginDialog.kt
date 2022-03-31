@@ -24,7 +24,7 @@ import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import splitties.views.onClick
-import timber.log.Timber
+
 
 class SourceLoginDialog : BaseDialogFragment(R.layout.dialog_login) {
 
@@ -33,10 +33,7 @@ class SourceLoginDialog : BaseDialogFragment(R.layout.dialog_login) {
 
     override fun onStart() {
         super.onStart()
-        setLayout(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
+        setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
@@ -66,7 +63,7 @@ class SourceLoginDialog : BaseDialogFragment(R.layout.dialog_login) {
                     binding.flexbox.addView(it.root)
                     it.root.id = index
                     it.textView.text = rowUi.name
-                    it.textView.setPadding(16.dp)
+                    it.textView.setPadding(16.dpToPx())
                     it.root.onClick {
                         if (rowUi.action.isAbsUrl()) {
                             context?.openUrl(rowUi.action!!)
@@ -124,7 +121,7 @@ class SourceLoginDialog : BaseDialogFragment(R.layout.dialog_login) {
                     } catch (e: Exception) {
                         AppLog.put("登录出错\n${e.localizedMessage}", e)
                         context?.toastOnUi("登录出错\n${e.localizedMessage}")
-                        Timber.e(e)
+                        e.printOnDebug()
                     }
                 }
             }

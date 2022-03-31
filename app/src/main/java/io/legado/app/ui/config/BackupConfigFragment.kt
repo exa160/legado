@@ -9,6 +9,7 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import androidx.documentfile.provider.DocumentFile
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
@@ -17,13 +18,10 @@ import io.legado.app.R
 import io.legado.app.base.BasePreferenceFragment
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
-import io.legado.app.help.AppConfig
-import io.legado.app.help.LocalConfig
+import io.legado.app.help.config.AppConfig
+import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.coroutine.Coroutine
-import io.legado.app.help.storage.AppWebDav
-import io.legado.app.help.storage.Backup
-import io.legado.app.help.storage.ImportOldData
-import io.legado.app.help.storage.Restore
+import io.legado.app.help.storage.*
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.permission.Permissions
 import io.legado.app.lib.permission.PermissionsCompat
@@ -38,6 +36,8 @@ import splitties.init.appCtx
 
 class BackupConfigFragment : BasePreferenceFragment(),
     SharedPreferences.OnSharedPreferenceChangeListener {
+
+    private val viewModel by activityViewModels<ConfigViewModel>()
 
     private val selectBackupPath = registerForActivityResult(HandleFileContract()) {
         it.uri?.let { uri ->
@@ -104,7 +104,6 @@ class BackupConfigFragment : BasePreferenceFragment(),
             it.setOnBindEditTextListener { editText ->
                 editText.applyTint(requireContext().accentColor)
             }
-
         }
         findPreference<EditTextPreference>(PreferKey.webDavAccount)?.let {
             it.setOnBindEditTextListener { editText ->
@@ -116,6 +115,11 @@ class BackupConfigFragment : BasePreferenceFragment(),
                 editText.applyTint(requireContext().accentColor)
                 editText.inputType =
                     InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_CLASS_TEXT
+            }
+        }
+        findPreference<EditTextPreference>(PreferKey.webDavDir)?.let {
+            it.setOnBindEditTextListener { editText ->
+                editText.applyTint(requireContext().accentColor)
             }
         }
         upPreferenceSummary(PreferKey.webDavUrl, getPrefString(PreferKey.webDavUrl))
@@ -163,13 +167,14 @@ class BackupConfigFragment : BasePreferenceFragment(),
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         when (key) {
+            PreferKey.backupPath -> upPreferenceSummary(key, getPrefString(key))
             PreferKey.webDavUrl,
             PreferKey.webDavAccount,
             PreferKey.webDavPassword,
-            PreferKey.backupPath -> {
+            PreferKey.webDavDir -> listView.post {
                 upPreferenceSummary(key, getPrefString(key))
+                viewModel.upWebDavConfig()
             }
-            PreferKey.webDavDir -> upPreferenceSummary(key, AppConfig.webDavDir)
         }
     }
 
@@ -194,10 +199,9 @@ class BackupConfigFragment : BasePreferenceFragment(),
                 } else {
                     preference.summary = "*".repeat(value.toString().length)
                 }
-            PreferKey.webDavDir -> if (value.isNullOrBlank()) {
-                preference.summary = "null"
-            } else {
-                preference.summary = value
+            PreferKey.webDavDir -> preference.summary = when (value) {
+                null -> "legado"
+                else -> value
             }
             else -> {
                 if (preference is ListPreference) {
@@ -224,15 +228,15 @@ class BackupConfigFragment : BasePreferenceFragment(),
 
 
     private fun backupIgnore() {
-        val checkedItems = BooleanArray(Backup.ignoreKeys.size) {
-            Backup.ignoreConfig[Backup.ignoreKeys[it]] ?: false
+        val checkedItems = BooleanArray(BackupConfig.ignoreKeys.size) {
+            BackupConfig.ignoreConfig[BackupConfig.ignoreKeys[it]] ?: false
         }
         alert(R.string.restore_ignore) {
-            multiChoiceItems(Backup.ignoreTitle, checkedItems) { _, which, isChecked ->
-                Backup.ignoreConfig[Backup.ignoreKeys[which]] = isChecked
+            multiChoiceItems(BackupConfig.ignoreTitle, checkedItems) { _, which, isChecked ->
+                BackupConfig.ignoreConfig[BackupConfig.ignoreKeys[which]] = isChecked
             }
             onDismiss {
-                Backup.saveIgnoreConfig()
+                BackupConfig.saveIgnoreConfig()
             }
         }
     }

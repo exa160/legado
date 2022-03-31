@@ -13,6 +13,7 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
@@ -29,7 +30,7 @@ import io.legado.app.R
 import io.legado.app.constant.AppConst
 import io.legado.app.help.IntentHelp
 import splitties.systemservices.clipboardManager
-import timber.log.Timber
+import splitties.systemservices.connectivityManager
 import java.io.File
 import java.io.FileOutputStream
 
@@ -178,7 +179,7 @@ val Context.sysScreenOffTime: Int
         return kotlin.runCatching {
             Settings.System.getInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT)
         }.onFailure {
-            Timber.e(it)
+            it.printOnDebug()
         }.getOrDefault(0)
     }
 
@@ -326,6 +327,12 @@ fun Context.openFileUri(uri: Uri, type: String? = null) {
     }
 }
 
+val Context.isWifiConnect: Boolean
+    get() {
+        val info = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI)
+        return info?.isConnected == true
+    }
+
 val Context.isPad: Boolean
     get() {
         return resources.configuration.screenLayout and Configuration.SCREENLAYOUT_SIZE_MASK >= Configuration.SCREENLAYOUT_SIZE_LARGE
@@ -338,7 +345,7 @@ val Context.channel: String
             val appInfo = pm.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
             return appInfo.metaData.getString("channel") ?: ""
         } catch (e: Exception) {
-            Timber.e(e)
+            e.printOnDebug()
         }
         return ""
     }

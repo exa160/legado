@@ -2,7 +2,6 @@ package io.legado.app.data.entities
 
 import androidx.room.Entity
 import androidx.room.Ignore
-import io.legado.app.model.analyzeRule.RuleDataInterface
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
 import kotlinx.parcelize.IgnoredOnParcel
@@ -13,18 +12,18 @@ import kotlinx.parcelize.IgnoredOnParcel
     primaryKeys = ["origin", "link"]
 )
 data class RssArticle(
-    var origin: String = "",
+    override var origin: String = "",
     var sort: String = "",
     var title: String = "",
     var order: Long = 0,
-    var link: String = "",
+    override var link: String = "",
     var pubDate: String? = null,
     var description: String? = null,
     var content: String? = null,
     var image: String? = null,
     var read: Boolean = false,
-    var variable: String? = null
-) : RuleDataInterface {
+    override var variable: String? = null
+) : BaseRssArticle {
 
     override fun hashCode() = link.hashCode()
 
@@ -36,17 +35,8 @@ data class RssArticle(
     @delegate:Transient
     @delegate:Ignore
     @IgnoredOnParcel
-    override val variableMap by lazy {
-        GSON.fromJsonObject<HashMap<String, String>>(variable) ?: HashMap()
-    }
-
-    override fun putVariable(key: String, value: String?) {
-        if (value != null) {
-            variableMap[key] = value
-        } else {
-            variableMap.remove(key)
-        }
-        variable = GSON.toJson(variableMap)
+    override val variableMap: HashMap<String, String> by lazy {
+        GSON.fromJsonObject<HashMap<String, String>>(variable).getOrNull() ?: hashMapOf()
     }
 
     fun toStar() = RssStar(

@@ -10,8 +10,12 @@ import io.legado.app.constant.IntentAction
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookSource
-import io.legado.app.help.AppConfig
-import io.legado.app.model.*
+import io.legado.app.exception.ContentEmptyException
+import io.legado.app.exception.NoStackTraceException
+import io.legado.app.exception.TocEmptyException
+import io.legado.app.help.config.AppConfig
+import io.legado.app.model.CheckSource
+import io.legado.app.model.Debug
 import io.legado.app.model.webBook.WebBook
 import io.legado.app.ui.book.source.manage.BookSourceActivity
 import io.legado.app.utils.activityPendingIntent
@@ -22,7 +26,9 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
+import org.mozilla.javascript.WrappedException
 import java.util.concurrent.Executors
+import javax.script.ScriptException
 import kotlin.math.min
 
 /**
@@ -176,18 +182,15 @@ class CheckSourceService : BaseService() {
         }.timeout(CheckSource.timeout)
             .onError(searchCoroutine) {
                 when(it) {
-                    //校验超时不能正常实现 不能识别
                     is TimeoutCancellationException -> source.addGroup("校验超时")
-                    //NoStackTraceException 已经添加了分组，其余的视为规则失效
-                    !is NoStackTraceException -> source.addGroup("规则失效")
+                    is ScriptException, is WrappedException -> source.addGroup("js失效")
+                    !is NoStackTraceException -> source.addGroup("网站失效")
                 }
                 source.bookSourceComment =
                     "Error: ${it.localizedMessage}" + if (source.bookSourceComment.isNullOrBlank())
                         "" else "\n\n${source.bookSourceComment}"
                 Debug.updateFinalMessage(source.bookSourceUrl, "校验失败:${it.localizedMessage}")
             }.onSuccess(searchCoroutine) {
-                source.removeGroup("失效")
-                source.removeGroup("规则失效")
                 source.removeGroup("校验超时")
                 Debug.updateFinalMessage(source.bookSourceUrl, "校验成功")
             }.onFinally(IO) {
@@ -230,7 +233,6 @@ class CheckSourceService : BaseService() {
             when (it) {
                 is ContentEmptyException -> source.addGroup("${bookType}正文失效")
                 is TocEmptyException -> source.addGroup("${bookType}目录失效")
-                //超时 网站异常 源码改变
                 else -> throw it
             }
         }.onSuccess {

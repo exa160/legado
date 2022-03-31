@@ -8,8 +8,8 @@ import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
 import io.legado.app.help.DefaultData
-import io.legado.app.help.ReadBookConfig
-import io.legado.app.help.ThemeConfig
+import io.legado.app.help.config.ReadBookConfig
+import io.legado.app.help.config.ThemeConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.utils.*
 import kotlinx.coroutines.Dispatchers.IO
@@ -20,7 +20,7 @@ import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 
 
-object Backup : BackupRestore() {
+object Backup {
 
     val backupPath: String by lazy {
         appCtx.filesDir.getFile("backup").absolutePath
@@ -66,7 +66,7 @@ object Backup : BackupRestore() {
     suspend fun backup(context: Context, path: String?, isAuto: Boolean = false) {
         context.putPrefLong(PreferKey.lastBackup, System.currentTimeMillis())
         withContext(IO) {
-            FileUtils.deleteFile(backupPath)
+            FileUtils.delete(backupPath)
             writeListToJson(appDb.bookDao.all, "bookshelf.json", backupPath)
             writeListToJson(appDb.bookmarkDao.all, "bookmark.json", backupPath)
             writeListToJson(appDb.bookGroupDao.all, "bookGroup.json", backupPath)
@@ -94,7 +94,7 @@ object Backup : BackupRestore() {
             Preferences.getSharedPreferences(appCtx, backupPath, "config")?.let { sp ->
                 val edit = sp.edit()
                 appCtx.defaultSharedPreferences.all.forEach { (key, value) ->
-                    if (keyIsNotIgnore(key)) {
+                    if (BackupConfig.keyIsNotIgnore(key)) {
                         when (value) {
                             is Int -> edit.putInt(key, value)
                             is Boolean -> edit.putBoolean(key, value)
@@ -130,7 +130,7 @@ object Backup : BackupRestore() {
         }
     }
 
-    @Throws(java.lang.Exception::class)
+    @Throws(Exception::class)
     private fun copyBackup(context: Context, uri: Uri, isAuto: Boolean) {
         DocumentFile.fromTreeUri(context, uri)?.let { treeDoc ->
             for (fileName in backupFileNames) {
@@ -153,7 +153,7 @@ object Backup : BackupRestore() {
         }
     }
 
-    @Throws(java.lang.Exception::class)
+    @Throws(Exception::class)
     private fun copyBackup(rootFile: File, isAuto: Boolean) {
         for (fileName in backupFileNames) {
             val file = File(backupPath + File.separator + fileName)

@@ -13,7 +13,7 @@ import io.legado.app.utils.*
 import kotlinx.coroutines.runBlocking
 import org.jsoup.nodes.Entities
 import org.mozilla.javascript.NativeObject
-import timber.log.Timber
+
 import java.net.URL
 import java.util.regex.Pattern
 import javax.script.SimpleBindings
@@ -24,11 +24,11 @@ import javax.script.SimpleBindings
 @Keep
 @Suppress("unused", "RegExpRedundantEscape", "MemberVisibilityCanBePrivate")
 class AnalyzeRule(
-    val ruleData: RuleDataInterface,
+    var ruleData: RuleDataInterface? = null,
     private val source: BaseSource? = null
 ) : JsExtensions {
 
-    var book = if (ruleData is BaseBook) ruleData else null
+    val book get() = ruleData as? BaseBook
 
     var chapter: BookChapter? = null
     var nextChapterUrl: String? = null
@@ -341,8 +341,11 @@ class AnalyzeRule(
         val putMatcher = putPattern.matcher(vRuleStr)
         while (putMatcher.find()) {
             vRuleStr = vRuleStr.replace(putMatcher.group(), "")
-            val map = GSON.fromJsonObject<Map<String, String>>(putMatcher.group(1))
-            map?.let { putMap.putAll(map) }
+            GSON.fromJsonObject<Map<String, String>>(putMatcher.group(1))
+                .getOrNull()
+                ?.let {
+                    putMap.putAll(it)
+                }
         }
         return vRuleStr
     }
@@ -379,7 +382,7 @@ class AnalyzeRule(
      * 分解规则生成规则列表
      */
     fun splitSourceRule(ruleStr: String?, allInOne: Boolean = false): List<SourceRule> {
-        if (ruleStr.isNullOrEmpty()) return ArrayList<SourceRule>()
+        if (ruleStr.isNullOrEmpty()) return emptyList()
         val ruleList = ArrayList<SourceRule>()
         var mMode: Mode = Mode.Default
         var start = 0
@@ -597,9 +600,9 @@ class AnalyzeRule(
 
         private fun isRule(ruleStr: String): Boolean {
             return ruleStr.startsWith('@') //js首个字符不可能是@，除非是装饰器，所以@开头规定为规则
-                    || ruleStr.startsWith("$.")
-                    || ruleStr.startsWith("$[")
-                    || ruleStr.startsWith("//")
+                || ruleStr.startsWith("$.")
+                || ruleStr.startsWith("$[")
+                || ruleStr.startsWith("//")
         }
     }
 
@@ -610,7 +613,7 @@ class AnalyzeRule(
     fun put(key: String, value: String): String {
         chapter?.putVariable(key, value)
             ?: book?.putVariable(key, value)
-            ?: ruleData.putVariable(key, value)
+            ?: ruleData?.putVariable(key, value)
         return value
     }
 
@@ -623,9 +626,9 @@ class AnalyzeRule(
                 return it.title
             }
         }
-        return chapter?.variableMap?.get(key)
-            ?: book?.variableMap?.get(key)
-            ?: ruleData.variableMap[key]
+        return chapter?.getVariable(key)
+            ?: book?.getVariable(key)
+            ?: ruleData?.getVariable(key)
             ?: ""
     }
 
@@ -662,7 +665,7 @@ class AnalyzeRule(
                 analyzeUrl.getStrResponseAwait().body
             }.onFailure {
                 log("ajax(${urlStr}) error\n${it.stackTraceToString()}")
-                Timber.e(it)
+                it.printOnDebug()
             }.getOrElse {
                 it.msg
             }

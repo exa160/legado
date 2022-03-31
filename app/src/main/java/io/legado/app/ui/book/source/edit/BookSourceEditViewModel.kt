@@ -5,15 +5,16 @@ import android.content.Intent
 import io.legado.app.base.BaseViewModel
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.BookSource
+import io.legado.app.exception.NoStackTraceException
+import io.legado.app.help.RuleComplete
 import io.legado.app.help.http.newCallStrResponse
 import io.legado.app.help.http.okHttpClient
-import io.legado.app.model.NoStackTraceException
 import io.legado.app.utils.*
 import kotlinx.coroutines.Dispatchers
-import timber.log.Timber
+
 
 class BookSourceEditViewModel(application: Application) : BaseViewModel(application) {
-
+    var autoComplete = false
     var bookSource: BookSource? = null
     private var oldSourceUrl: String? = null
 
@@ -48,7 +49,7 @@ class BookSourceEditViewModel(application: Application) : BaseViewModel(applicat
             success?.invoke()
         }.onError {
             context.toastOnUi(it.localizedMessage)
-            Timber.e(it)
+            it.printOnDebug()
         }
     }
 
@@ -62,7 +63,7 @@ class BookSourceEditViewModel(application: Application) : BaseViewModel(applicat
             }
         }.onError {
             context.toastOnUi(it.localizedMessage ?: "Error")
-            Timber.e(it)
+            it.printOnDebug()
         }
     }
 
@@ -85,14 +86,20 @@ class BookSourceEditViewModel(application: Application) : BaseViewModel(applicat
             text.isJsonArray() -> {
                 val items: List<Map<String, Any>> = jsonPath.parse(text).read("$")
                 val jsonItem = jsonPath.parse(items[0])
-                BookSource.fromJson(jsonItem.jsonString())
+                BookSource.fromJson(jsonItem.jsonString()).getOrThrow()
             }
             text.isJsonObject() -> {
-                BookSource.fromJson(text)
+                BookSource.fromJson(text).getOrThrow()
             }
-            else -> {
-                null
-            }
+            else -> throw NoStackTraceException("格式不对")
         }
     }
+
+    fun ruleComplete(rule: String?, preRule: String? = null, type: Int = 1): String? {
+        if (autoComplete) {
+            return RuleComplete.autoComplete(rule, preRule, type)
+        }
+        return rule
+    }
+
 }

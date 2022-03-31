@@ -21,7 +21,7 @@ import io.legado.app.data.entities.RssSource
 import io.legado.app.databinding.DialogCustomGroupBinding
 import io.legado.app.databinding.DialogRecyclerViewBinding
 import io.legado.app.databinding.ItemSourceImportBinding
-import io.legado.app.help.AppConfig
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.widget.dialog.CodeDialog
@@ -50,10 +50,7 @@ class ImportRssSourceDialog() : BaseDialogFragment(R.layout.dialog_recycler_view
 
     override fun onStart() {
         super.onStart()
-        setLayout(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
+        setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     override fun onDismiss(dialog: DialogInterface) {
@@ -95,14 +92,14 @@ class ImportRssSourceDialog() : BaseDialogFragment(R.layout.dialog_recycler_view
             adapter.notifyDataSetChanged()
             upSelectText()
         }
-        viewModel.errorLiveData.observe(this, {
+        viewModel.errorLiveData.observe(this) {
             binding.rotateLoading.hide()
             binding.tvMsg.apply {
                 text = it
                 visible()
             }
-        })
-        viewModel.successLiveData.observe(this, {
+        }
+        viewModel.successLiveData.observe(this) {
             binding.rotateLoading.hide()
             if (it > 0) {
                 adapter.setItems(viewModel.allSources)
@@ -113,7 +110,7 @@ class ImportRssSourceDialog() : BaseDialogFragment(R.layout.dialog_recycler_view
                     visible()
                 }
             }
-        })
+        }
         val source = arguments?.getString("source")
         if (source.isNullOrEmpty()) {
             dismiss()
@@ -166,7 +163,7 @@ class ImportRssSourceDialog() : BaseDialogFragment(R.layout.dialog_recycler_view
                 }
                 textInputLayout.setHint(R.string.group_name)
                 editView.setFilterValues(groups.toList())
-                editView.dropDownHeight = 180.dp
+                editView.dropDownHeight = 180.dpToPx()
             }
             customView {
                 alertBinding.root
@@ -191,7 +188,7 @@ class ImportRssSourceDialog() : BaseDialogFragment(R.layout.dialog_recycler_view
 
     override fun onCodeSave(code: String, requestId: String?) {
         requestId?.toInt()?.let {
-            RssSource.fromJson(code)?.let { source ->
+            RssSource.fromJson(code).getOrNull()?.let { source ->
                 viewModel.allSources[it] = source
                 adapter.setItem(it, source)
             }

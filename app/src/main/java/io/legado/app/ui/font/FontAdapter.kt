@@ -8,15 +8,16 @@ import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter
 import io.legado.app.databinding.ItemFontBinding
 import io.legado.app.utils.*
-import timber.log.Timber
+
 import java.io.File
 import java.net.URLDecoder
 
 class FontAdapter(context: Context, curFilePath: String, val callBack: CallBack) :
     RecyclerAdapter<FileDoc, ItemFontBinding>(context) {
 
-    private val curName = URLDecoder.decode(curFilePath, "utf-8")
-        .substringAfterLast(File.separator)
+    private val curName = kotlin.runCatching {
+        URLDecoder.decode(curFilePath, "utf-8")
+    }.getOrNull()?.substringAfterLast(File.separator)
 
     override fun getViewBinding(parent: ViewGroup): ItemFontBinding {
         return ItemFontBinding.inflate(inflater, parent, false)
@@ -45,7 +46,7 @@ class FontAdapter(context: Context, curFilePath: String, val callBack: CallBack)
                 }
                 tvFont.typeface = typeface
             }.onFailure {
-                Timber.e(it)
+                it.printOnDebug()
                 context.toastOnUi("Read ${item.name} Error: ${it.localizedMessage}")
             }
             tvFont.text = item.name

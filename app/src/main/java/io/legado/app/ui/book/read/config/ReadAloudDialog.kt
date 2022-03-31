@@ -11,7 +11,7 @@ import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
 import io.legado.app.constant.EventBus
 import io.legado.app.databinding.DialogReadAloudBinding
-import io.legado.app.help.AppConfig
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.bottomBackground
 import io.legado.app.lib.theme.getPrimaryTextColor
 import io.legado.app.model.ReadAloud
@@ -22,7 +22,6 @@ import io.legado.app.ui.widget.seekbar.SeekBarChangeListener
 import io.legado.app.utils.ColorUtils
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.observeEvent
-import io.legado.app.utils.putPrefBoolean
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 
 
@@ -32,15 +31,15 @@ class ReadAloudDialog : BaseDialogFragment(R.layout.dialog_read_aloud) {
 
     override fun onStart() {
         super.onStart()
-        dialog?.window?.let {
-            it.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-            it.setBackgroundDrawableResource(R.color.background)
-            it.decorView.setPadding(0, 0, 0, 0)
-            val attr = it.attributes
+        dialog?.window?.run {
+            clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            setBackgroundDrawableResource(R.color.background)
+            decorView.setPadding(0, 0, 0, 0)
+            val attr = attributes
             attr.dimAmount = 0.0f
             attr.gravity = Gravity.BOTTOM
-            it.attributes = attr
-            it.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            attributes = attr
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
     }
 
@@ -110,7 +109,7 @@ class ReadAloudDialog : BaseDialogFragment(R.layout.dialog_read_aloud) {
         llCatalog.setOnClickListener { callBack?.openChapterList() }
         llToBackstage.setOnClickListener { callBack?.finish() }
         cbTtsFollowSys.setOnCheckedChangeListener { _, isChecked ->
-            requireContext().putPrefBoolean("ttsFollowSys", isChecked)
+            AppConfig.ttsFlowSys = isChecked
             seekTtsSpeechRate.isEnabled = !isChecked
             upTtsSpeechRate()
         }
@@ -185,7 +184,7 @@ class ReadAloudDialog : BaseDialogFragment(R.layout.dialog_read_aloud) {
 
     override fun observeLiveBus() {
         observeEvent<Int>(EventBus.ALOUD_STATE) { upPlayState() }
-        observeEvent<Int>(EventBus.TTS_DS) { binding.seekTimer.progress = it }
+        observeEvent<Int>(EventBus.READ_ALOUD_DS) { binding.seekTimer.progress = it }
     }
 
     interface CallBack {

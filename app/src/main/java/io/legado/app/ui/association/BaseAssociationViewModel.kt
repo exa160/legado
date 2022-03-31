@@ -6,8 +6,8 @@ import io.legado.app.base.BaseViewModel
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.HttpTTS
 import io.legado.app.data.entities.TxtTocRule
-import io.legado.app.help.ThemeConfig
-import io.legado.app.model.NoStackTraceException
+import io.legado.app.exception.NoStackTraceException
+import io.legado.app.help.config.ThemeConfig
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonArray
 import io.legado.app.utils.fromJsonObject
@@ -19,11 +19,11 @@ abstract class BaseAssociationViewModel(application: Application) : BaseViewMode
     fun importTextTocRule(json: String, finally: (title: String, msg: String) -> Unit) {
         execute {
             if (json.isJsonArray()) {
-                GSON.fromJsonArray<TxtTocRule>(json)?.let {
+                GSON.fromJsonArray<TxtTocRule>(json).getOrThrow()?.let {
                     appDb.txtTocRuleDao.insert(*it.toTypedArray())
                 } ?: throw NoStackTraceException("格式不对")
             } else {
-                GSON.fromJsonObject<TxtTocRule>(json)?.let {
+                GSON.fromJsonObject<TxtTocRule>(json).getOrThrow()?.let {
                     appDb.txtTocRuleDao.insert(it)
                 } ?: throw NoStackTraceException("格式不对")
             }
@@ -63,11 +63,11 @@ abstract class BaseAssociationViewModel(application: Application) : BaseViewMode
     fun importTheme(json: String, finally: (title: String, msg: String) -> Unit) {
         execute {
             if (json.isJsonArray()) {
-                GSON.fromJsonArray<ThemeConfig.Config>(json)?.forEach {
+                GSON.fromJsonArray<ThemeConfig.Config>(json).getOrThrow()?.forEach {
                     ThemeConfig.addConfig(it)
                 } ?: throw NoStackTraceException("格式不对")
             } else {
-                GSON.fromJsonObject<ThemeConfig.Config>(json)?.let {
+                GSON.fromJsonObject<ThemeConfig.Config>(json).getOrThrow()?.let {
                     ThemeConfig.addConfig(it)
                 } ?: throw NoStackTraceException("格式不对")
             }

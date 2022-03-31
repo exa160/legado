@@ -8,7 +8,8 @@ import androidx.room.Index
 import com.github.liuyueyi.quick.transfer.ChineseUtils
 import io.legado.app.R
 import io.legado.app.constant.AppPattern
-import io.legado.app.help.AppConfig
+import io.legado.app.help.RuleBigDataHelp
+import io.legado.app.help.config.AppConfig
 import io.legado.app.model.analyzeRule.AnalyzeUrl
 import io.legado.app.model.analyzeRule.RuleDataInterface
 import io.legado.app.utils.*
@@ -50,17 +51,23 @@ data class BookChapter(
     @delegate:Transient
     @delegate:Ignore
     @IgnoredOnParcel
-    override val variableMap by lazy {
-        GSON.fromJsonObject<HashMap<String, String>>(variable) ?: HashMap()
+    override val variableMap: HashMap<String, String> by lazy {
+        GSON.fromJsonObject<HashMap<String, String>>(variable).getOrNull() ?: hashMapOf()
     }
 
-    override fun putVariable(key: String, value: String?) {
-        if (value != null) {
-            variableMap[key] = value
-        } else {
-            variableMap.remove(key)
+    override fun putVariable(key: String, value: String?): Boolean {
+        if (super.putVariable(key, value)) {
+            variable = GSON.toJson(variableMap)
         }
-        variable = GSON.toJson(variableMap)
+        return true
+    }
+
+    override fun putBigVariable(key: String, value: String?) {
+        RuleBigDataHelp.putChapterVariable(bookUrl, url, key, value)
+    }
+
+    override fun getBigVariable(key: String): String? {
+        return RuleBigDataHelp.getChapterVariable(bookUrl, url, key)
     }
 
     override fun hashCode() = url.hashCode()

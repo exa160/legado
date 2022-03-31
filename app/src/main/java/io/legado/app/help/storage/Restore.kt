@@ -6,25 +6,26 @@ import androidx.documentfile.provider.DocumentFile
 import io.legado.app.BuildConfig
 import io.legado.app.R
 import io.legado.app.constant.AppConst.androidId
+import io.legado.app.constant.AppLog
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.*
 import io.legado.app.help.DefaultData
 import io.legado.app.help.LauncherIconHelp
-import io.legado.app.help.ReadBookConfig
-import io.legado.app.help.ThemeConfig
+import io.legado.app.help.config.ReadBookConfig
+import io.legado.app.help.config.ThemeConfig
 import io.legado.app.utils.*
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import splitties.init.appCtx
-import timber.log.Timber
 import java.io.File
+import java.io.FileInputStream
 
 
-object Restore : BackupRestore() {
+object Restore {
 
     suspend fun restore(context: Context, path: String) {
         withContext(IO) {
@@ -53,7 +54,7 @@ object Restore : BackupRestore() {
                         }
                     }
                 } catch (e: Exception) {
-                    Timber.e(e)
+                    e.printOnDebug()
                 }
             }
         }
@@ -124,42 +125,42 @@ object Restore : BackupRestore() {
                 val file =
                     FileUtils.createFileIfNotExist("$path${File.separator}${ThemeConfig.configFileName}")
                 if (file.exists()) {
-                    FileUtils.deleteFile(ThemeConfig.configFilePath)
+                    FileUtils.delete(ThemeConfig.configFilePath)
                     file.copyTo(File(ThemeConfig.configFilePath))
                     ThemeConfig.upConfig()
                 }
             } catch (e: Exception) {
-                Timber.e(e)
+                e.printOnDebug()
             }
-            if (!ignoreReadConfig) {
+            if (!BackupConfig.ignoreReadConfig) {
                 //恢复阅读界面配置
                 try {
                     val file =
                         FileUtils.createFileIfNotExist("$path${File.separator}${ReadBookConfig.configFileName}")
                     if (file.exists()) {
-                        FileUtils.deleteFile(ReadBookConfig.configFilePath)
+                        FileUtils.delete(ReadBookConfig.configFilePath)
                         file.copyTo(File(ReadBookConfig.configFilePath))
                         ReadBookConfig.initConfigs()
                     }
                 } catch (e: Exception) {
-                    Timber.e(e)
+                    e.printOnDebug()
                 }
                 try {
                     val file =
                         FileUtils.createFileIfNotExist("$path${File.separator}${ReadBookConfig.shareConfigFileName}")
                     if (file.exists()) {
-                        FileUtils.deleteFile(ReadBookConfig.shareConfigFilePath)
+                        FileUtils.delete(ReadBookConfig.shareConfigFilePath)
                         file.copyTo(File(ReadBookConfig.shareConfigFilePath))
                         ReadBookConfig.initShareConfig()
                     }
                 } catch (e: Exception) {
-                    Timber.e(e)
+                    e.printOnDebug()
                 }
             }
             Preferences.getSharedPreferences(appCtx, path, "config")?.all?.let { map ->
                 val edit = appCtx.defaultSharedPreferences.edit()
                 map.forEach { (key, value) ->
-                    if (keyIsNotIgnore(key)) {
+                    if (BackupConfig.keyIsNotIgnore(key)) {
                         when (value) {
                             is Int -> edit.putInt(key, value)
                             is Boolean -> edit.putBoolean(key, value)
@@ -192,10 +193,12 @@ object Restore : BackupRestore() {
     private inline fun <reified T> fileToListT(path: String, fileName: String): List<T>? {
         try {
             val file = FileUtils.createFileIfNotExist(path + File.separator + fileName)
-            val json = file.readText()
-            return GSON.fromJsonArray(json)
+            FileInputStream(file).use {
+                return GSON.fromJsonArray<T>(it).getOrThrow()
+            }
         } catch (e: Exception) {
-            Timber.e(e)
+            AppLog.put("$fileName\n读取解析出错\n${e.localizedMessage}", e)
+            appCtx.toastOnUi("$fileName\n读取文件出错\n${e.localizedMessage}")
         }
         return null
     }

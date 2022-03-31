@@ -7,10 +7,10 @@ import io.legado.app.base.BaseViewModel
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookSource
+import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.http.newCallResponseBody
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.http.text
-import io.legado.app.model.NoStackTraceException
 import io.legado.app.model.webBook.WebBook
 import io.legado.app.utils.*
 import kotlinx.coroutines.Dispatchers.IO
@@ -24,7 +24,9 @@ class BookshelfViewModel(application: Application) : BaseViewModel(application) 
     fun addBookByUrl(bookUrls: String) {
         var successCount = 0
         execute {
-            var hasBookUrlPattern: List<BookSource>? = null
+            val hasBookUrlPattern: List<BookSource> by lazy {
+                appDb.bookSourceDao.hasBookUrlPattern
+            }
             val urls = bookUrls.split("\n")
             for (url in urls) {
                 val bookUrl = url.trim()
@@ -33,9 +35,6 @@ class BookshelfViewModel(application: Application) : BaseViewModel(application) 
                 val baseUrl = NetworkUtils.getBaseUrl(bookUrl) ?: continue
                 var source = appDb.bookSourceDao.getBookSource(baseUrl)
                 if (source == null) {
-                    if (hasBookUrlPattern == null) {
-                        hasBookUrlPattern = appDb.bookSourceDao.hasBookUrlPattern
-                    }
                     hasBookUrlPattern.forEach { bookSource ->
                         if (bookUrl.matches(bookSource.bookUrlPattern!!.toRegex())) {
                             source = bookSource
@@ -126,7 +125,7 @@ class BookshelfViewModel(application: Application) : BaseViewModel(application) 
     private fun importBookshelfByJson(json: String, groupId: Long) {
         execute {
             val bookSources = appDb.bookSourceDao.allEnabled
-            GSON.fromJsonArray<Map<String, String?>>(json)?.forEach { bookInfo ->
+            GSON.fromJsonArray<Map<String, String?>>(json).getOrThrow()?.forEach { bookInfo ->
                 if (!isActive) return@execute
                 val name = bookInfo["name"] ?: ""
                 val author = bookInfo["author"] ?: ""
@@ -143,6 +142,8 @@ class BookshelfViewModel(application: Application) : BaseViewModel(application) 
                         }
                 }
             }
+        }.onError {
+            it.printOnDebug()
         }.onFinally {
             context.toastOnUi(R.string.success)
         }

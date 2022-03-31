@@ -8,14 +8,15 @@ import com.bumptech.glide.load.model.LazyHeaders
 import io.legado.app.constant.AppConst.SCRIPT_ENGINE
 import io.legado.app.constant.AppConst.UA_NAME
 import io.legado.app.constant.AppPattern.JS_PATTERN
+import io.legado.app.constant.AppPattern.dataUriRegex
 import io.legado.app.data.entities.BaseSource
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
-import io.legado.app.help.AppConfig
+import io.legado.app.exception.ConcurrentException
 import io.legado.app.help.CacheManager
 import io.legado.app.help.JsExtensions
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.http.*
-import io.legado.app.model.ConcurrentException
 import io.legado.app.utils.*
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
@@ -166,34 +167,28 @@ class AnalyzeUrl(
             baseUrl = it
         }
         if (urlNoOption.length != ruleUrl.length) {
-            GSON.fromJsonObject<UrlOption>(ruleUrl.substring(urlMatcher.end()))?.let { option ->
-                option.method?.let {
-                    if (it.equals("POST", true)) method = RequestMethod.POST
-                }
-                option.headers?.let { headers ->
-                    if (headers is Map<*, *>) {
-                        headers.forEach { entry ->
-                            headerMap[entry.key.toString()] = entry.value.toString()
+            GSON.fromJsonObject<UrlOption>(ruleUrl.substring(urlMatcher.end())).getOrNull()
+                ?.let { option ->
+                    option.getMethod()?.let {
+                        if (it.equals("POST", true)) method = RequestMethod.POST
+                    }
+                    option.getHeaderMap()?.forEach { entry ->
+                        headerMap[entry.key.toString()] = entry.value.toString()
+                    }
+                    option.getBody()?.let {
+                        body = it
+                    }
+                    type = option.getType()
+                    charset = option.getCharset()
+                    retry = option.getRetry()
+                    useWebView = option.useWebView()
+                    webJs = option.getWebJs()
+                    option.getJs()?.let { jsStr ->
+                        evalJS(jsStr, url)?.toString()?.let {
+                            url = it
                         }
-                    } else if (headers is String) {
-                        GSON.fromJsonObject<Map<String, String>>(headers)
-                            ?.let { headerMap.putAll(it) }
                     }
                 }
-                option.body?.let {
-                    body = if (it is String) it else GSON.toJson(it)
-                }
-                type = option.type
-                charset = option.charset
-                retry = option.retry
-                useWebView = option.webView?.toString()?.isNotBlank() == true
-                webJs = option.webJs
-                option.js?.let { jsStr ->
-                    evalJS(jsStr, url)?.toString()?.let {
-                        url = it
-                    }
-                }
-            }
         }
         headerMap[UA_NAME] ?: let {
             headerMap[UA_NAME] = AppConfig.userAgent
@@ -272,8 +267,8 @@ class AnalyzeUrl(
                 return it.title
             }
         }
-        return chapter?.variableMap?.get(key)
-            ?: ruleData?.variableMap?.get(key)
+        return chapter?.getVariable(key)
+            ?: ruleData?.getVariable(key)
             ?: ""
     }
 
@@ -463,7 +458,6 @@ class AnalyzeUrl(
      */
     suspend fun getByteArrayAwait(): ByteArray {
         @Suppress("RegExpRedundantEscape")
-        val dataUriRegex = Regex("data:[\\w/\\-\\.]+;base64,(.*)")
         val dataUriFindResult = dataUriRegex.find(urlNoQuery)
         val concurrentRecord = fetchStart()
         setCookie(source?.getKey())
@@ -510,7 +504,7 @@ class AnalyzeUrl(
     suspend fun upload(fileName: String, file: Any, contentType: String): StrResponse {
         return getProxyClient(proxy).newCallStrResponse(retry) {
             url(urlNoQuery)
-            val bodyMap = GSON.fromJsonObject<HashMap<String, Any>>(body)!!
+            val bodyMap = GSON.fromJsonObject<HashMap<String, Any>>(body).getOrNull()!!
             bodyMap.forEach { entry ->
                 if (entry.value.toString() == "fileRequest") {
                     bodyMap[entry.key] = mapOf(
@@ -560,16 +554,106 @@ class AnalyzeUrl(
     }
 
     data class UrlOption(
-        val method: String?,
-        val charset: String?,
-        val headers: Any?,
-        val body: Any?,
-        val type: String?,
-        val js: String?,
-        val retry: Int = 0,
-        val webView: Any?,
-        val webJs: String?,
-    )
+        private var method: String? = null,
+        private var charset: String? = null,
+        private var headers: Any? = null,
+        private var body: Any? = null,
+        private var retry: Int? = null,
+        private var type: String? = null,
+        private var webView: Any? = null,
+        private var webJs: String? = null,
+        private var js: String? = null,
+    ) {
+        fun setMethod(value: String?) {
+            method = if (value.isNullOrBlank()) null else value
+        }
+
+        fun getMethod(): String? {
+            return method
+        }
+
+        fun setCharset(value: String?) {
+            charset = if (value.isNullOrBlank()) null else value
+        }
+
+        fun getCharset(): String? {
+            return charset
+        }
+
+        fun setRetry(value: String?) {
+            retry = if (value.isNullOrEmpty()) null else value.toIntOrNull()
+        }
+
+        fun getRetry(): Int {
+            return retry ?: 0
+        }
+
+        fun setType(value: String?) {
+            type = if (value.isNullOrBlank()) null else value
+        }
+
+        fun getType(): String? {
+            return type
+        }
+
+        fun useWebView(): Boolean {
+            return when (webView) {
+                null, "", false, "false" -> false
+                else -> true
+            }
+        }
+
+        fun useWebView(boolean: Boolean) {
+            webView = if (boolean) true else null
+        }
+
+        fun setHeaders(value: String?) {
+            headers = if (value.isNullOrBlank()) {
+                null
+            } else {
+                GSON.fromJsonObject<Map<String, Any>>(value).getOrNull()
+            }
+        }
+
+        fun getHeaderMap(): Map<*, *>? {
+            return when (val value = headers) {
+                is Map<*, *> -> value
+                is String -> GSON.fromJsonObject<Map<String, Any>>(value).getOrNull()
+                else -> null
+            }
+        }
+
+        fun setBody(value: String?) {
+            body = when {
+                value.isNullOrBlank() -> null
+                value.isJsonObject() -> GSON.fromJsonObject<Map<String, Any>>(value)
+                value.isJsonArray() -> GSON.fromJsonArray<Map<String, Any>>(value)
+                else -> value
+            }
+        }
+
+        fun getBody(): String? {
+            return body?.let {
+                if (it is String) it else GSON.toJson(it)
+            }
+        }
+
+        fun setWebJs(value: String?) {
+            webJs = if (value.isNullOrBlank()) null else value
+        }
+
+        fun getWebJs(): String? {
+            return webJs
+        }
+
+        fun setJs(value: String?) {
+            js = if (value.isNullOrBlank()) null else value
+        }
+
+        fun getJs(): String? {
+            return js
+        }
+    }
 
     data class ConcurrentRecord(
         val concurrent: Boolean,

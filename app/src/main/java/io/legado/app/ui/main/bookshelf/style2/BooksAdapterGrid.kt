@@ -10,20 +10,12 @@ import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookGroup
 import io.legado.app.databinding.ItemBookshelfGridBinding
 import io.legado.app.databinding.ItemBookshelfGridGroupBinding
-import io.legado.app.help.AppConfig
+import io.legado.app.help.config.AppConfig
 import io.legado.app.utils.invisible
 import splitties.views.onLongClick
 
 class BooksAdapterGrid(context: Context, callBack: CallBack) :
     BaseBooksAdapter<RecyclerView.ViewHolder>(context, callBack) {
-
-    override fun getItemCount(): Int {
-        return callBack.getItemCount()
-    }
-
-    override fun getItemViewType(position: Int): Int {
-        return callBack.getItemType(position)
-    }
 
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -67,7 +59,7 @@ class BooksAdapterGrid(context: Context, callBack: CallBack) :
 
     private fun onBindBook(binding: ItemBookshelfGridBinding, position: Int, bundle: Bundle) {
         binding.run {
-            val item = callBack.getItem(position) as Book
+            val item = callBack.getItem(position) as? Book ?: return
             bundle.keySet().forEach {
                 when (it) {
                     "name" -> tvName.text = item.name

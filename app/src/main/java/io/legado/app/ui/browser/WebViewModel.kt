@@ -8,13 +8,12 @@ import android.webkit.URLUtil
 import androidx.documentfile.provider.DocumentFile
 import io.legado.app.base.BaseViewModel
 import io.legado.app.constant.AppConst
+import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.IntentData
 import io.legado.app.help.http.newCallResponseBody
 import io.legado.app.help.http.okHttpClient
-import io.legado.app.model.NoStackTraceException
 import io.legado.app.model.analyzeRule.AnalyzeUrl
 import io.legado.app.utils.*
-import timber.log.Timber
 import java.io.File
 import java.util.*
 
@@ -41,7 +40,7 @@ class WebViewModel(application: Application) : BaseViewModel(application) {
             success.invoke()
         }.onError {
             context.toastOnUi("error\n${it.localizedMessage}")
-            Timber.e(it)
+            it.printOnDebug()
         }
     }
 

@@ -4,7 +4,8 @@ import com.google.gson.*
 import com.google.gson.internal.LinkedTreeMap
 import com.google.gson.reflect.TypeToken
 import com.google.gson.stream.JsonWriter
-import timber.log.Timber
+import java.io.InputStream
+import java.io.InputStreamReader
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.lang.reflect.ParameterizedType
@@ -26,20 +27,30 @@ val GSON: Gson by lazy {
 
 inline fun <reified T> genericType(): Type = object : TypeToken<T>() {}.type
 
-inline fun <reified T> Gson.fromJsonObject(json: String?): T? {//可转成任意类型
+inline fun <reified T> Gson.fromJsonObject(json: String?): Result<T?> {
     return kotlin.runCatching {
         fromJson(json, genericType<T>()) as? T
-    }.onFailure {
-        Timber.e(it, json)
-    }.getOrNull()
+    }
 }
 
-inline fun <reified T> Gson.fromJsonArray(json: String?): List<T>? {
+inline fun <reified T> Gson.fromJsonArray(json: String?): Result<List<T>?> {
     return kotlin.runCatching {
         fromJson(json, ParameterizedTypeImpl(T::class.java)) as? List<T>
-    }.onFailure {
-        Timber.e(it, json)
-    }.getOrNull()
+    }
+}
+
+inline fun <reified T> Gson.fromJsonObject(inputStream: InputStream?): Result<T?> {
+    return kotlin.runCatching {
+        val reader = InputStreamReader(inputStream)
+        fromJson(reader, genericType<T>()) as? T
+    }
+}
+
+inline fun <reified T> Gson.fromJsonArray(inputStream: InputStream?): Result<List<T>?> {
+    return kotlin.runCatching {
+        val reader = InputStreamReader(inputStream)
+        fromJson(reader, ParameterizedTypeImpl(T::class.java)) as? List<T>
+    }
 }
 
 fun Gson.writeToOutputStream(out: OutputStream, any: Any) {

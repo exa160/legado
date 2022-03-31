@@ -14,7 +14,7 @@ import androidx.webkit.WebViewFeature
 import io.legado.app.R
 import io.legado.app.base.VMBaseActivity
 import io.legado.app.databinding.ActivityRssReadBinding
-import io.legado.app.help.AppConfig
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.dialogs.SelectItem
 import io.legado.app.lib.theme.primaryTextColor
 import io.legado.app.model.Download
@@ -44,7 +44,7 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
     private val saveImage = registerForActivityResult(HandleFileContract()) {
         it.uri?.let { uri ->
             ACache.get(this).put(imagePathKey, uri.toString())
-            viewModel.saveImage(webPic, uri.toString())
+            viewModel.saveImage(webPic, uri)
         }
     }
 
@@ -123,6 +123,7 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             domStorageEnabled = true
             allowContentAccess = true
+            builtInZoomControls = true
         }
         binding.webView.addJavascriptInterface(this, "app")
         upWebViewTheme()
@@ -154,7 +155,7 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
         if (path.isNullOrEmpty()) {
             selectSaveFolder()
         } else {
-            viewModel.saveImage(webPic, path)
+            viewModel.saveImage(webPic, Uri.parse(path))
         }
     }
 

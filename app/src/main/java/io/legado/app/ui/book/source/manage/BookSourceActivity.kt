@@ -21,7 +21,7 @@ import io.legado.app.data.entities.BookSource
 import io.legado.app.databinding.ActivityBookSourceBinding
 import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.help.DirectLinkUpload
-import io.legado.app.help.LocalConfig
+import io.legado.app.help.config.LocalConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.lib.theme.primaryTextColor
@@ -389,7 +389,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
             val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
                 editView.setHint(R.string.group_name)
                 editView.setFilterValues(groups.toList())
-                editView.dropDownHeight = 180.dp
+                editView.dropDownHeight = 180.dpToPx()
             }
             customView { alertBinding.root }
             okButton {
@@ -409,7 +409,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
             val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
                 editView.setHint(R.string.group_name)
                 editView.setFilterValues(groups.toList())
-                editView.dropDownHeight = 180.dp
+                editView.dropDownHeight = 180.dpToPx()
             }
             customView { alertBinding.root }
             okButton {

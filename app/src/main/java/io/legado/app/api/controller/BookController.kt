@@ -8,10 +8,11 @@ import io.legado.app.api.ReturnData
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
-import io.legado.app.help.AppConfig
+import io.legado.app.data.entities.BookSource
 import io.legado.app.help.BookHelp
 import io.legado.app.help.CacheManager
 import io.legado.app.help.ContentProcessor
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.glide.ImageLoader
 import io.legado.app.help.storage.AppWebDav
 import io.legado.app.model.BookCover
@@ -21,12 +22,17 @@ import io.legado.app.model.localBook.LocalBook
 import io.legado.app.model.localBook.UmdFile
 import io.legado.app.model.webBook.WebBook
 import io.legado.app.utils.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import splitties.init.appCtx
 import java.io.File
 import java.io.FileOutputStream
 
 object BookController {
+
+    private lateinit var book: Book
+    private var bookSource: BookSource? = null
+    private var bookUrl: String = ""
 
     /**
      * 书架所有书籍
@@ -62,6 +68,35 @@ object BookController {
         } catch (e: Exception) {
             returnData.setData(BookCover.defaultDrawable.toBitmap())
         }
+    }
+
+    /**
+     * 获取正文图片
+     */
+    fun getImg(parameters: Map<String, List<String>>): ReturnData {
+        val returnData = ReturnData()
+        val bookUrl = parameters["url"]?.firstOrNull()
+            ?: return returnData.setErrorMsg("bookUrl为空")
+        val src = parameters["path"]?.firstOrNull()
+            ?: return returnData.setErrorMsg("图片链接为空")
+        val width = parameters["width"]?.firstOrNull()?.toInt() ?: 640
+        if (this.bookUrl != bookUrl) {
+            this.book = appDb.bookDao.getBook(bookUrl)
+                ?: return returnData.setErrorMsg("bookUrl不对")
+        }
+        val vFile = BookHelp.getImage(book, src)
+        if (!vFile.exists()) {
+            if (this.bookUrl != bookUrl) {
+                this.bookSource = appDb.bookSourceDao.getBookSource(book.origin)
+            }
+            runBlocking {
+                BookHelp.saveImage(bookSource, book, src)
+            }
+        }
+        this.bookUrl = bookUrl
+        return returnData.setData(
+            BitmapUtils.decodeBitmap(vFile.absolutePath, width, width)
+        )
     }
 
     /**
@@ -131,7 +166,16 @@ object BookController {
             return returnData.setErrorMsg("参数index不能为空, 请指定目录序号")
         }
         val book = appDb.bookDao.getBook(bookUrl)
-        val chapter = appDb.bookChapterDao.getChapter(bookUrl, index)
+        val chapter = runBlocking {
+            var chapter = appDb.bookChapterDao.getChapter(bookUrl, index)
+            var wait = 0
+            while (chapter == null && wait < 30) {
+                delay(1000)
+                chapter = appDb.bookChapterDao.getChapter(bookUrl, index)
+                wait++
+            }
+            chapter
+        }
         if (book == null || chapter == null) {
             return returnData.setErrorMsg("未找到")
         }
@@ -166,9 +210,8 @@ object BookController {
      * 保存书籍
      */
     fun saveBook(postData: String?): ReturnData {
-        val book = GSON.fromJsonObject<Book>(postData)
         val returnData = ReturnData()
-        if (book != null) {
+        GSON.fromJsonObject<Book>(postData).getOrNull()?.let { book ->
             book.save()
             AppWebDav.uploadBookProgress(book)
             if (ReadBook.book?.bookUrl == book.bookUrl) {
@@ -257,17 +300,24 @@ object BookController {
         return returnData.setData(true)
     }
 
+    /**
+     * 保存web阅读界面配置
+     */
     fun saveWebReadConfig(postData: String?): ReturnData {
         val returnData = ReturnData()
         postData?.let {
             CacheManager.put("webReadConfig", postData)
-        }
+        } ?: CacheManager.delete("webReadConfig")
         return returnData.setData("")
     }
 
+    /**
+     * 获取web阅读界面配置
+     */
     fun getWebReadConfig(): ReturnData {
         val returnData = ReturnData()
-        val data = CacheManager.get("webReadConfig") ?: "{}"
+        val data = CacheManager.get("webReadConfig")
+            ?: return returnData.setErrorMsg("没有配置")
         return returnData.setData(data)
     }
 

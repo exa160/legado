@@ -14,7 +14,7 @@ import io.legado.app.base.adapter.RecyclerAdapter
 import io.legado.app.constant.EventBus
 import io.legado.app.databinding.DialogReadBookStyleBinding
 import io.legado.app.databinding.ItemReadStyleBinding
-import io.legado.app.help.ReadBookConfig
+import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.bottomBackground
@@ -35,15 +35,15 @@ class ReadStyleDialog : BaseDialogFragment(R.layout.dialog_read_book_style),
 
     override fun onStart() {
         super.onStart()
-        dialog?.window?.let {
-            it.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-            it.setBackgroundDrawableResource(R.color.background)
-            it.decorView.setPadding(0, 0, 0, 0)
-            val attr = it.attributes
+        dialog?.window?.run {
+            clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            setBackgroundDrawableResource(R.color.background)
+            decorView.setPadding(0, 0, 0, 0)
+            val attr = attributes
             attr.dimAmount = 0.0f
             attr.gravity = Gravity.BOTTOM
-            it.attributes = attr
-            it.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            attributes = attr
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
     }
 
@@ -80,7 +80,7 @@ class ReadStyleDialog : BaseDialogFragment(R.layout.dialog_read_book_style),
         rvStyle.adapter = styleAdapter
         styleAdapter.addFooterView {
             ItemReadStyleBinding.inflate(layoutInflater, it, false).apply {
-                ivStyle.setPadding(6.dp, 6.dp, 6.dp, 6.dp)
+                ivStyle.setPadding(6.dpToPx(), 6.dpToPx(), 6.dpToPx(), 6.dpToPx())
                 ivStyle.setText(null)
                 ivStyle.setColorFilter(textColor)
                 ivStyle.borderColor = textColor

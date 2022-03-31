@@ -21,7 +21,7 @@ import io.legado.app.data.entities.BookSource
 import io.legado.app.databinding.DialogCustomGroupBinding
 import io.legado.app.databinding.DialogRecyclerViewBinding
 import io.legado.app.databinding.ItemSourceImportBinding
-import io.legado.app.help.AppConfig
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.widget.dialog.CodeDialog
@@ -51,10 +51,7 @@ class ImportBookSourceDialog() : BaseDialogFragment(R.layout.dialog_recycler_vie
 
     override fun onStart() {
         super.onStart()
-        setLayout(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
+        setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     override fun onDismiss(dialog: DialogInterface) {
@@ -96,14 +93,14 @@ class ImportBookSourceDialog() : BaseDialogFragment(R.layout.dialog_recycler_vie
             adapter.notifyDataSetChanged()
             upSelectText()
         }
-        viewModel.errorLiveData.observe(this, {
+        viewModel.errorLiveData.observe(this) {
             binding.rotateLoading.hide()
             binding.tvMsg.apply {
                 text = it
                 visible()
             }
-        })
-        viewModel.successLiveData.observe(this, {
+        }
+        viewModel.successLiveData.observe(this) {
             binding.rotateLoading.hide()
             if (it > 0) {
                 adapter.setItems(viewModel.allSources)
@@ -114,7 +111,7 @@ class ImportBookSourceDialog() : BaseDialogFragment(R.layout.dialog_recycler_vie
                     visible()
                 }
             }
-        })
+        }
         val source = arguments?.getString("source")
         if (source.isNullOrEmpty()) {
             dismiss()
@@ -167,7 +164,7 @@ class ImportBookSourceDialog() : BaseDialogFragment(R.layout.dialog_recycler_vie
                 }
                 textInputLayout.setHint(R.string.group_name)
                 editView.setFilterValues(groups.toList())
-                editView.dropDownHeight = 180.dp
+                editView.dropDownHeight = 180.dpToPx()
             }
             customView {
                 alertBinding.root
@@ -192,7 +189,7 @@ class ImportBookSourceDialog() : BaseDialogFragment(R.layout.dialog_recycler_vie
 
     override fun onCodeSave(code: String, requestId: String?) {
         requestId?.toInt()?.let {
-            BookSource.fromJson(code)?.let { source ->
+            BookSource.fromJson(code).getOrNull()?.let { source ->
                 viewModel.allSources[it] = source
                 adapter.setItem(it, source)
             }

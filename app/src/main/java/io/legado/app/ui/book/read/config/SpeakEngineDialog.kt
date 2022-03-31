@@ -18,8 +18,8 @@ import io.legado.app.data.entities.HttpTTS
 import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.databinding.DialogRecyclerViewBinding
 import io.legado.app.databinding.ItemHttpTtsBinding
-import io.legado.app.help.AppConfig
 import io.legado.app.help.DirectLinkUpload
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.dialogs.SelectItem
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
@@ -95,8 +95,8 @@ class SpeakEngineDialog(val callBack: CallBack) : BaseDialogFragment(R.layout.di
                     labelSys.visible()
                     cbName.text = engine.label
                     cbName.tag = engine.name
-                    cbName.isChecked =
-                        GSON.fromJsonObject<SelectItem<String>>(ttsEngine)?.value == cbName.tag
+                    cbName.isChecked = GSON.fromJsonObject<SelectItem<String>>(ttsEngine)
+                        .getOrNull()?.value == cbName.tag
                     cbName.setOnClickListener {
                         upTts(GSON.toJson(SelectItem(engine.label, engine.name)))
                     }
@@ -192,7 +192,8 @@ class SpeakEngineDialog(val callBack: CallBack) : BaseDialogFragment(R.layout.di
     private fun upTts(tts: String) {
         ttsEngine = tts
         sysTtsViews.forEach {
-            it.isChecked = GSON.fromJsonObject<SelectItem<String>>(ttsEngine)?.value == it.tag
+            it.isChecked = GSON.fromJsonObject<SelectItem<String>>(ttsEngine)
+                .getOrNull()?.value == it.tag
         }
         adapter.notifyItemRangeChanged(adapter.getHeaderCount(), adapter.itemCount)
     }

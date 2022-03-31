@@ -4,9 +4,10 @@ import android.os.Parcelable
 import androidx.room.*
 import io.legado.app.constant.AppPattern
 import io.legado.app.constant.BookType
+import io.legado.app.constant.PageAnim
 import io.legado.app.data.appDb
-import io.legado.app.help.AppConfig
-import io.legado.app.help.ReadBookConfig
+import io.legado.app.help.config.AppConfig
+import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.model.ReadBook
 import io.legado.app.utils.GSON
 import io.legado.app.utils.MD5Utils
@@ -24,36 +25,82 @@ import kotlin.math.min
     indices = [Index(value = ["name", "author"], unique = true)]
 )
 data class Book(
+    // 详情页Url(本地书源存储完整文件路径)
     @PrimaryKey
-    override var bookUrl: String = "",          // 详情页Url(本地书源存储完整文件路径)
-    var tocUrl: String = "",                    // 目录页Url (toc=table of Contents)
-    var origin: String = BookType.local,        // 书源URL(默认BookType.local)
-    var originName: String = "",                //书源名称 or 本地书籍文件名
-    override var name: String = "",             // 书籍名称(书源获取)
-    override var author: String = "",           // 作者名称(书源获取)
-    override var kind: String? = null,          // 分类信息(书源获取)
-    var customTag: String? = null,              // 分类信息(用户修改)
-    var coverUrl: String? = null,               // 封面Url(书源获取)
-    var customCoverUrl: String? = null,         // 封面Url(用户修改)
-    var intro: String? = null,                  // 简介内容(书源获取)
-    var customIntro: String? = null,            // 简介内容(用户修改)
-    var charset: String? = null,                // 自定义字符集名称(仅适用于本地书籍)
-    var type: Int = 0,                          // 0:text 1:audio
-    var group: Long = 0,                         // 自定义分组索引号
-    var latestChapterTitle: String? = null,     // 最新章节标题
-    var latestChapterTime: Long = System.currentTimeMillis(),            // 最新章节标题更新时间
-    var lastCheckTime: Long = System.currentTimeMillis(),                // 最近一次更新书籍信息的时间
-    var lastCheckCount: Int = 0,                // 最近一次发现新章节的数量
-    var totalChapterNum: Int = 0,               // 书籍目录总数
-    var durChapterTitle: String? = null,        // 当前章节名称
-    var durChapterIndex: Int = 0,               // 当前章节索引
-    var durChapterPos: Int = 0,                 // 当前阅读的进度(首行字符的索引位置)
-    var durChapterTime: Long = System.currentTimeMillis(),               // 最近一次阅读书籍的时间(打开正文的时间)
+    @ColumnInfo(defaultValue = "")
+    override var bookUrl: String = "",
+    // 目录页Url (toc=table of Contents)
+    @ColumnInfo(defaultValue = "")
+    var tocUrl: String = "",
+    // 书源URL(默认BookType.local)
+    @ColumnInfo(defaultValue = "")
+    var origin: String = BookType.local,
+    //书源名称 or 本地书籍文件名
+    @ColumnInfo(defaultValue = "")
+    var originName: String = "",
+    // 书籍名称(书源获取)
+    @ColumnInfo(defaultValue = "")
+    override var name: String = "",
+    // 作者名称(书源获取)
+    @ColumnInfo(defaultValue = "")
+    override var author: String = "",
+    // 分类信息(书源获取)
+    override var kind: String? = null,
+    // 分类信息(用户修改)
+    var customTag: String? = null,
+    // 封面Url(书源获取)
+    var coverUrl: String? = null,
+    // 封面Url(用户修改)
+    var customCoverUrl: String? = null,
+    // 简介内容(书源获取)
+    var intro: String? = null,
+    // 简介内容(用户修改)
+    var customIntro: String? = null,
+    // 自定义字符集名称(仅适用于本地书籍)
+    var charset: String? = null,
+    // 0:text 1:audio 3:image
+    @ColumnInfo(defaultValue = "0")
+    var type: Int = 0,
+    // 自定义分组索引号
+    @ColumnInfo(defaultValue = "0")
+    var group: Long = 0,
+    // 最新章节标题
+    var latestChapterTitle: String? = null,
+    // 最新章节标题更新时间
+    @ColumnInfo(defaultValue = "0")
+    var latestChapterTime: Long = System.currentTimeMillis(),
+    // 最近一次更新书籍信息的时间
+    @ColumnInfo(defaultValue = "0")
+    var lastCheckTime: Long = System.currentTimeMillis(),
+    // 最近一次发现新章节的数量
+    @ColumnInfo(defaultValue = "0")
+    var lastCheckCount: Int = 0,
+    // 书籍目录总数
+    @ColumnInfo(defaultValue = "0")
+    var totalChapterNum: Int = 0,
+    // 当前章节名称
+    var durChapterTitle: String? = null,
+    // 当前章节索引
+    @ColumnInfo(defaultValue = "0")
+    var durChapterIndex: Int = 0,
+    // 当前阅读的进度(首行字符的索引位置)
+    @ColumnInfo(defaultValue = "0")
+    var durChapterPos: Int = 0,
+    // 最近一次阅读书籍的时间(打开正文的时间)
+    @ColumnInfo(defaultValue = "0")
+    var durChapterTime: Long = System.currentTimeMillis(),
     override var wordCount: String? = null,
-    var canUpdate: Boolean = true,              // 刷新书架时更新书籍信息
-    var order: Int = 0,                         // 手动排序
-    var originOrder: Int = 0,                   //书源排序
-    var variable: String? = null,               // 自定义书籍变量信息(用于书源规则检索书籍信息)
+    // 刷新书架时更新书籍信息
+    @ColumnInfo(defaultValue = "1")
+    var canUpdate: Boolean = true,
+    // 手动排序
+    @ColumnInfo(defaultValue = "0")
+    var order: Int = 0,
+    //书源排序
+    @ColumnInfo(defaultValue = "0")
+    var originOrder: Int = 0,
+    // 自定义书籍变量信息(用于书源规则检索书籍信息)
+    override var variable: String? = null,
     var readConfig: ReadConfig? = null
 ) : Parcelable, BaseBook {
 
@@ -92,17 +139,8 @@ data class Book(
     @delegate:Transient
     @delegate:Ignore
     @IgnoredOnParcel
-    override val variableMap by lazy {
-        GSON.fromJsonObject<HashMap<String, String>>(variable) ?: HashMap()
-    }
-
-    override fun putVariable(key: String, value: String?) {
-        if (value != null) {
-            variableMap[key] = value
-        } else {
-            variableMap.remove(key)
-        }
-        variable = GSON.toJson(variableMap)
+    override val variableMap: HashMap<String, String> by lazy {
+        GSON.fromJsonObject<HashMap<String, String>>(variable).getOrNull() ?: hashMapOf()
     }
 
     @Ignore
@@ -169,7 +207,8 @@ data class Book(
     }
 
     fun getPageAnim(): Int {
-        var pageAnim = config.pageAnim ?: ReadBookConfig.pageAnim
+        var pageAnim = config.pageAnim
+            ?: if (type == BookType.image) PageAnim.scrollPageAnim else ReadBookConfig.pageAnim
         if (pageAnim < 0) {
             pageAnim = ReadBookConfig.pageAnim
         }
@@ -182,6 +221,7 @@ data class Book(
 
     fun getImageStyle(): String? {
         return config.imageStyle
+            ?: if (type == BookType.image) imgStyleFull else null
     }
 
     fun setTtsEngine(ttsEngine: String?) {
@@ -307,6 +347,6 @@ data class Book(
         fun readConfigToString(config: ReadConfig?): String = GSON.toJson(config)
 
         @TypeConverter
-        fun stringToReadConfig(json: String?) = GSON.fromJsonObject<ReadConfig>(json)
+        fun stringToReadConfig(json: String?) = GSON.fromJsonObject<ReadConfig>(json).getOrNull()
     }
 }

@@ -10,8 +10,8 @@ import io.legado.app.constant.AppPattern
 import io.legado.app.constant.EventBus
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
-import io.legado.app.help.AppConfig
-import io.legado.app.help.ReadBookConfig
+import io.legado.app.help.config.AppConfig
+import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.model.ReadBook
 import io.legado.app.ui.book.read.page.entities.TextChapter
 import io.legado.app.ui.book.read.page.entities.TextChar
@@ -181,7 +181,7 @@ object ChapterProvider {
                 }
             }
         }
-        textPages.last().height = durY + 20.dp
+        textPages.last().height = durY + 20.dpToPx()
         textPages.last().text = stringBuilder.toString()
         textPages.forEachIndexed { index, item ->
             item.index = index
@@ -204,7 +204,7 @@ object ChapterProvider {
         book: Book,
         chapter: BookChapter,
         src: String,
-        absStartX: Int,
+        x: Int,
         y: Float,
         textPages: ArrayList<TextPage>,
         imageStyle: String?,
@@ -245,18 +245,15 @@ object ChapterProvider {
             textLine.lineBottom = durY
             val (start, end) = if (visibleWidth > width) {
                 val adjustWidth = (visibleWidth - width) / 2f
-                Pair(
-                    paddingLeft.toFloat() + adjustWidth,
-                    paddingLeft.toFloat() + adjustWidth + width
-                )
+                Pair(adjustWidth, adjustWidth + width)
             } else {
-                Pair(paddingLeft.toFloat(), (paddingLeft + width).toFloat())
+                Pair(0f, width.toFloat())
             }
             textLine.textChars.add(
                 TextChar(
                     charData = src,
-                    start = absStartX + start,
-                    end = absStartX + end,
+                    start = x + start,
+                    end = x + end,
                     isImage = true
                 )
             )
@@ -540,8 +537,8 @@ object ChapterProvider {
         //间距
         lineSpacingExtra = ReadBookConfig.lineSpacingExtra / 10f
         paragraphSpacing = ReadBookConfig.paragraphSpacing
-        titleTopSpacing = ReadBookConfig.titleTopSpacing.dp
-        titleBottomSpacing = ReadBookConfig.titleBottomSpacing.dp
+        titleTopSpacing = ReadBookConfig.titleTopSpacing.dpToPx()
+        titleBottomSpacing = ReadBookConfig.titleBottomSpacing.dpToPx()
         upLayout()
     }
 
@@ -596,14 +593,14 @@ object ChapterProvider {
         tPaint.color = ReadBookConfig.textColor
         tPaint.letterSpacing = ReadBookConfig.letterSpacing
         tPaint.typeface = titleFont
-        tPaint.textSize = with(ReadBookConfig) { textSize + titleSize }.sp.toFloat()
+        tPaint.textSize = with(ReadBookConfig) { textSize + titleSize }.toFloat().spToPx()
         tPaint.isAntiAlias = true
         //正文
         val cPaint = TextPaint()
         cPaint.color = ReadBookConfig.textColor
         cPaint.letterSpacing = ReadBookConfig.letterSpacing
         cPaint.typeface = textFont
-        cPaint.textSize = ReadBookConfig.textSize.sp.toFloat()
+        cPaint.textSize = ReadBookConfig.textSize.toFloat().spToPx()
         cPaint.isAntiAlias = true
         return Pair(tPaint, cPaint)
     }
@@ -628,10 +625,10 @@ object ChapterProvider {
             && ReadBook.pageAnim() != 3
             && AppConfig.doublePageHorizontal
         if (viewWidth > 0 && viewHeight > 0) {
-            paddingLeft = ReadBookConfig.paddingLeft.dp
-            paddingTop = ReadBookConfig.paddingTop.dp
-            paddingRight = ReadBookConfig.paddingRight.dp
-            paddingBottom = ReadBookConfig.paddingBottom.dp
+            paddingLeft = ReadBookConfig.paddingLeft.dpToPx()
+            paddingTop = ReadBookConfig.paddingTop.dpToPx()
+            paddingRight = ReadBookConfig.paddingRight.dpToPx()
+            paddingBottom = ReadBookConfig.paddingBottom.dpToPx()
             visibleWidth = if (doublePage) {
                 viewWidth / 2 - paddingLeft - paddingRight
             } else {

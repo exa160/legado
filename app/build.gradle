@@ -3,6 +3,7 @@ apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-parcelize'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'de.timfreiheit.resourceplaceholders'
+//apply plugin: 'com.google.gms.google-services'
 apply from: 'download.gradle'
 
 static def releaseTime() {
@@ -28,6 +29,9 @@ android {
                 keyPassword RELEASE_KEY_PASSWORD
                 v1SigningEnabled true
                 v2SigningEnabled true
+                enableV3Signing = true
+                enableV4Signing = true
+
             }
         }
     }
@@ -53,6 +57,7 @@ android {
     }
     buildFeatures {
         viewBinding true
+        compose true
     }
     buildTypes {
         release {
@@ -101,6 +106,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.1.0'
+    }
 
     sourceSets {
         // Adds exported schema location as test app assets.
@@ -145,16 +153,35 @@ dependencies {
     implementation('androidx.constraintlayout:constraintlayout:2.1.3')
     implementation('androidx.swiperefreshlayout:swiperefreshlayout:1.1.0')
     implementation('androidx.viewpager2:viewpager2:1.0.0')
-    implementation('com.google.android.material:material:1.5.0')
-    implementation('com.google.android.flexbox:flexbox:3.0.0')
-    implementation('com.google.code.gson:gson:2.8.9')
     implementation('androidx.webkit:webkit:1.4.0')
 
-    implementation('com.jakewharton.timber:timber:5.0.1')
+    implementation('com.google.android.material:material:1.5.0')
+    implementation('com.google.android.flexbox:flexbox:3.0.0')
+    implementation('com.google.code.gson:gson:2.9.0')
+
+    //lifecycle
+    def lifecycle_version = '2.4.1'
+    implementation("androidx.lifecycle:lifecycle-common-java8:$lifecycle_version")
+
+    //compose
+    // Integration with activities
+    implementation 'androidx.activity:activity-compose:1.4.0'
+    // Compose Material Design
+    implementation 'androidx.compose.material:material:1.1.1'
+    // Animations
+    implementation 'androidx.compose.animation:animation:1.1.1'
+    // Tooling support (Previews, etc.)
+    implementation 'androidx.compose.ui:ui-tooling:1.1.1'
+    // UI Tests
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4:1.1.1'
+
+    //firebase
+    //implementation platform('com.google.firebase:firebase-bom:29.1.0')
+    //implementation 'com.google.firebase:firebase-analytics-ktx'
 
     //media
     implementation("androidx.media:media:1.5.0")
-    def exoplayer_version = '2.17.0'
+    def exoplayer_version = '2.17.1'
     implementation("com.google.android.exoplayer:exoplayer-core:$exoplayer_version")
     implementation("com.google.android.exoplayer:extension-okhttp:$exoplayer_version")
 
@@ -163,10 +190,6 @@ dependencies {
     implementation("com.louiscad.splitties:splitties-appctx:$splitties_version")
     implementation("com.louiscad.splitties:splitties-systemservices:$splitties_version")
     implementation("com.louiscad.splitties:splitties-views:$splitties_version")
-
-    //lifecycle
-    def lifecycle_version = '2.4.1'
-    implementation("androidx.lifecycle:lifecycle-common-java8:$lifecycle_version")
 
     //room
     def room_version = '2.4.2'
@@ -185,14 +208,14 @@ dependencies {
     implementation(project(path: ':epublib'))
 
     //JS rhino
-    implementation('com.github.gedoor:rhino-android:1.6')
+    implementation('com.github.gedoor:rhino-android:1.8')
 
     //网络
     implementation('com.squareup.okhttp3:okhttp:4.9.3')
     implementation(fileTree(dir: 'cronetlib', include: ['*.jar', '*.aar']))
 
     //Glide
-    def glideVersion = "4.13.0"
+    def glideVersion = "4.13.1"
     implementation("com.github.bumptech.glide:glide:$glideVersion")
     kapt("com.github.bumptech.glide:compiler:$glideVersion")
 
@@ -221,11 +244,14 @@ dependencies {
     implementation('com.github.liuyueyi.quick-chinese-transfer:quick-transfer-core:0.2.3')
 
     //加解密类库
-    implementation('cn.hutool:hutool-crypto:5.7.20')
+    implementation('cn.hutool:hutool-crypto:5.8.0.M1')
+
+    //renderscriptToolkit
+    implementation('com.github.android:renderscript-intrinsics-replacement-toolkit:b6363490c3')
 
     //代码编辑com.github.AmrDeveloper:CodeView已集成到应用内
     //epubLib集成到应用内
 
     // LeakCanary
-    //debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.7'
+    //debugImplementation('com.squareup.leakcanary:leakcanary-android:2.7')
 }

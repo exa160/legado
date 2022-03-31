@@ -19,7 +19,7 @@ import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.databinding.DialogReadBgTextBinding
 import io.legado.app.databinding.ItemBgImageBinding
 import io.legado.app.help.DefaultData
-import io.legado.app.help.ReadBookConfig
+import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.http.newCallResponseBody
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.lib.dialogs.SelectItem
@@ -33,8 +33,9 @@ import io.legado.app.ui.document.HandleFileContract
 import io.legado.app.ui.widget.seekbar.SeekBarChangeListener
 import io.legado.app.utils.*
 import io.legado.app.utils.viewbindingdelegate.viewBinding
-import timber.log.Timber
+
 import java.io.File
+import java.io.FileOutputStream
 
 class BgTextConfigDialog : BaseDialogFragment(R.layout.dialog_read_bg_text) {
 
@@ -71,15 +72,15 @@ class BgTextConfigDialog : BaseDialogFragment(R.layout.dialog_read_bg_text) {
 
     override fun onStart() {
         super.onStart()
-        dialog?.window?.let {
-            it.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-            it.setBackgroundDrawableResource(R.color.background)
-            it.decorView.setPadding(0, 0, 0, 0)
-            val attr = it.attributes
+        dialog?.window?.run {
+            clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            setBackgroundDrawableResource(R.color.background)
+            decorView.setPadding(0, 0, 0, 0)
+            val attr = attributes
             attr.dimAmount = 0.0f
             attr.gravity = Gravity.BOTTOM
-            it.attributes = attr
-            it.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            attributes = attr
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
     }
 
@@ -231,10 +232,10 @@ class BgTextConfigDialog : BaseDialogFragment(R.layout.dialog_read_bg_text) {
         execute {
             val exportFiles = arrayListOf<File>()
             val configDirPath = FileUtils.getPath(requireContext().externalCache, "readConfig")
-            FileUtils.deleteFile(configDirPath)
+            FileUtils.delete(configDirPath)
             val configDir = FileUtils.createFolderIfNotExist(configDirPath)
             val configExportPath = FileUtils.getPath(configDir, "readConfig.json")
-            FileUtils.deleteFile(configExportPath)
+            FileUtils.delete(configExportPath)
             val configExportFile = FileUtils.createFileIfNotExist(configExportPath)
             configExportFile.writeText(GSON.toJson(ReadBookConfig.getExportConfig()))
             exportFiles.add(configExportFile)
@@ -285,7 +286,7 @@ class BgTextConfigDialog : BaseDialogFragment(R.layout.dialog_read_bg_text) {
                     }
                 } else {
                     val exportPath = FileUtils.getPath(File(uri.path!!), exportFileName)
-                    FileUtils.deleteFile(exportPath)
+                    FileUtils.delete(exportPath)
                     FileUtils.createFileIfNotExist(exportPath)
                         .writeBytes(File(configZipPath).readBytes())
                 }
@@ -293,7 +294,7 @@ class BgTextConfigDialog : BaseDialogFragment(R.layout.dialog_read_bg_text) {
         }.onSuccess {
             toastOnUi("导出成功, 文件名为 $exportFileName")
         }.onError {
-            Timber.e(it)
+            it.printOnDebug()
             longToast("导出失败:${it.localizedMessage}")
         }
     }
@@ -330,7 +331,7 @@ class BgTextConfigDialog : BaseDialogFragment(R.layout.dialog_read_bg_text) {
             @Suppress("BlockingMethodInNonBlockingContext")
             importConfig(uri.readBytes(requireContext()))
         }.onError {
-            Timber.e(it)
+            it.printOnDebug()
             longToast("导入失败:${it.localizedMessage}")
         }
     }
@@ -338,22 +339,24 @@ class BgTextConfigDialog : BaseDialogFragment(R.layout.dialog_read_bg_text) {
     @Suppress("BlockingMethodInNonBlockingContext", "BlockingMethodInNonBlockingContext")
     private fun importConfig(byteArray: ByteArray) {
         execute {
-            ReadBookConfig.import(byteArray)
+            ReadBookConfig.import(byteArray).getOrThrow()
         }.onSuccess {
             ReadBookConfig.durConfig = it
             postEvent(EventBus.UP_CONFIG, true)
             toastOnUi("导入成功")
         }.onError {
-            Timber.e(it)
+            it.printOnDebug()
             longToast("导入失败:${it.localizedMessage}")
         }
     }
 
     private fun setBgFromUri(uri: Uri) {
-        readUri(uri) { name, bytes ->
+        readUri(uri) { fileDoc, inputStream ->
             var file = requireContext().externalFiles
-            file = FileUtils.createFileIfNotExist(file, "bg", name)
-            file.writeBytes(bytes)
+            file = FileUtils.createFileIfNotExist(file, "bg", fileDoc.name)
+            FileOutputStream(file).use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
             ReadBookConfig.durConfig.setCurBg(2, file.absolutePath)
             ReadBookConfig.upBg()
             postEvent(EventBus.UP_CONFIG, false)

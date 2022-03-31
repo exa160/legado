@@ -10,6 +10,7 @@ import android.view.View.VISIBLE
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.widget.SearchView
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.flexbox.FlexboxLayoutManager
@@ -21,6 +22,7 @@ import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.SearchKeyword
 import io.legado.app.databinding.ActivityBookSearchBinding
+import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.*
 import io.legado.app.ui.book.info.BookInfoActivity
 import io.legado.app.ui.book.source.manage.BookSourceActivity
@@ -62,6 +64,24 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
     private var menu: Menu? = null
     private var precisionSearchMenuItem: MenuItem? = null
     private var groups = linkedSetOf<String>()
+    private val searchFinishCallback: (isEmpty: Boolean) -> Unit = {
+        if (it) {
+            val searchGroup = getPrefString("searchGroup")
+            if (!searchGroup.isNullOrEmpty()) {
+                launch {
+                    alert("搜索结果为空") {
+                        setMessage("${searchGroup}分组搜索结果为空,是否切换到全部分组")
+                        cancelButton()
+                        okButton {
+                            putPrefString("searchGroup", "")
+                            viewModel.searchKey = ""
+                            viewModel.search(searchView.query.toString())
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         binding.llHistory.setBackgroundColor(backgroundColor)
@@ -70,6 +90,7 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
         initOtherView()
         initData()
         receiptIntent(intent)
+        viewModel.searchFinishCallback = searchFinishCallback
     }
 
     override fun onNewIntent(data: Intent?) {
@@ -125,6 +146,7 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
                 searchView.clearFocus()
                 query?.let {
                     viewModel.saveSearchKey(query)
+                    viewModel.searchKey = ""
                     viewModel.search(it)
                 }
                 openOrCloseHistory(false)
@@ -196,7 +218,7 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
     }
 
     private fun initData() {
-        launch {
+        lifecycleScope.launchWhenStarted {
             viewModel.searchDataFlow.conflate().collect {
                 adapter.setItems(it)
                 delay(1000)
@@ -234,7 +256,10 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
      * 滚动到底部事件
      */
     private fun scrollToBottom() {
-        if (!viewModel.isLoading && viewModel.searchKey.isNotEmpty() && loadMoreView.hasMore) {
+        if (viewModel.isSearchLiveData.value == false
+            && viewModel.searchKey.isNotEmpty()
+            && loadMoreView.hasMore
+        ) {
             viewModel.search("")
         }
     }
@@ -369,6 +394,7 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
     override fun deleteHistory(searchKeyword: SearchKeyword) {
         viewModel.deleteHistory(searchKeyword)
     }
+
 
     companion object {
 

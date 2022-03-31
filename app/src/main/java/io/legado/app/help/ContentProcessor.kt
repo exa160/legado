@@ -6,6 +6,8 @@ import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
 import io.legado.app.data.entities.ReplaceRule
+import io.legado.app.help.config.AppConfig
+import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.utils.toastOnUi
 import splitties.init.appCtx
 import java.lang.ref.WeakReference
@@ -79,7 +81,7 @@ class ContentProcessor private constructor(
         try {
             val name = Pattern.quote(book.name)
             val title = Pattern.quote(chapter.title)
-            val titleRegex = "^(\\s|\\p{P}|${name})*${title}(\\s|\\p{P})+".toRegex()
+            val titleRegex = "^(\\s|\\p{P}|${name})*${title}(\\s)+".toRegex()
             mContent = mContent.replace(titleRegex, "")
         } catch (e: Exception) {
             AppLog.put("去除重复标题出错\n${e.localizedMessage}", e)
@@ -105,7 +107,10 @@ class ContentProcessor private constructor(
         }
         if (includeTitle) {
             //重新添加标题
-            mContent = chapter.getDisplayTitle(getTitleReplaceRules()) + "\n" + mContent
+            mContent = chapter.getDisplayTitle(
+                getTitleReplaceRules(),
+                useReplace = useReplace && book.getUseReplaceRule()
+            ) + "\n" + mContent
         }
         val contents = arrayListOf<String>()
         mContent.split("\n").forEach { str ->

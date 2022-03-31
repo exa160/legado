@@ -11,7 +11,7 @@ import io.legado.app.utils.*
 import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
 import splitties.init.appCtx
-import timber.log.Timber
+import java.io.InputStream
 
 @Parcelize
 @TypeConverters(BookSource.Converters::class)
@@ -27,7 +27,7 @@ data class BookSource(
     var bookSourceName: String = "",
     // 分组
     var bookSourceGroup: String? = null,
-    // 类型，0 文本，1 音频, 3 图片
+    // 类型，0 文本，1 音频, 2 图片
     @BookType.Type
     var bookSourceType: Int = 0,
     // 详情页url正则
@@ -80,10 +80,6 @@ data class BookSource(
         return bookSourceUrl
     }
 
-    override fun getSource(): BaseSource {
-        return this
-    }
-
     @delegate:Transient
     @delegate:Ignore
     @IgnoredOnParcel
@@ -109,7 +105,7 @@ data class BookSource(
                     }
                 }
                 if (ruleStr.isJsonArray()) {
-                    GSON.fromJsonArray<ExploreKind>(ruleStr)?.let {
+                    GSON.fromJsonArray<ExploreKind>(ruleStr).getOrThrow()?.let {
                         kinds.addAll(it)
                     }
                 } else {
@@ -120,7 +116,7 @@ data class BookSource(
                 }
             }.onFailure {
                 kinds.add(ExploreKind("ERROR:${it.localizedMessage}", it.stackTraceToString()))
-                Timber.e(it)
+                it.printOnDebug()
             }
         }
         return@lazy kinds
@@ -208,46 +204,60 @@ data class BookSource(
 
     companion object {
 
-        fun fromJson(json: String): BookSource? {
+        fun fromJson(json: String): Result<BookSource> {
             return SourceAnalyzer.jsonToBookSource(json)
         }
 
-        fun fromJsonArray(json: String): List<BookSource> {
+        fun fromJsonArray(json: String): Result<MutableList<BookSource>> {
             return SourceAnalyzer.jsonToBookSources(json)
+        }
+
+        fun fromJsonArray(inputStream: InputStream): Result<MutableList<BookSource>> {
+            return SourceAnalyzer.jsonToBookSources(inputStream)
         }
     }
 
     class Converters {
 
         @TypeConverter
-        fun exploreRuleToString(exploreRule: ExploreRule?): String = GSON.toJson(exploreRule)
+        fun exploreRuleToString(exploreRule: ExploreRule?): String =
+            GSON.toJson(exploreRule)
 
         @TypeConverter
-        fun stringToExploreRule(json: String?) = GSON.fromJsonObject<ExploreRule>(json)
+        fun stringToExploreRule(json: String?) =
+            GSON.fromJsonObject<ExploreRule>(json).getOrNull()
 
         @TypeConverter
-        fun searchRuleToString(searchRule: SearchRule?): String = GSON.toJson(searchRule)
+        fun searchRuleToString(searchRule: SearchRule?): String =
+            GSON.toJson(searchRule)
 
         @TypeConverter
-        fun stringToSearchRule(json: String?) = GSON.fromJsonObject<SearchRule>(json)
+        fun stringToSearchRule(json: String?) =
+            GSON.fromJsonObject<SearchRule>(json).getOrNull()
 
         @TypeConverter
-        fun bookInfoRuleToString(bookInfoRule: BookInfoRule?): String = GSON.toJson(bookInfoRule)
+        fun bookInfoRuleToString(bookInfoRule: BookInfoRule?): String =
+            GSON.toJson(bookInfoRule)
 
         @TypeConverter
-        fun stringToBookInfoRule(json: String?) = GSON.fromJsonObject<BookInfoRule>(json)
+        fun stringToBookInfoRule(json: String?) =
+            GSON.fromJsonObject<BookInfoRule>(json).getOrNull()
 
         @TypeConverter
-        fun tocRuleToString(tocRule: TocRule?): String = GSON.toJson(tocRule)
+        fun tocRuleToString(tocRule: TocRule?): String =
+            GSON.toJson(tocRule)
 
         @TypeConverter
-        fun stringToTocRule(json: String?) = GSON.fromJsonObject<TocRule>(json)
+        fun stringToTocRule(json: String?) =
+            GSON.fromJsonObject<TocRule>(json).getOrNull()
 
         @TypeConverter
-        fun contentRuleToString(contentRule: ContentRule?): String = GSON.toJson(contentRule)
+        fun contentRuleToString(contentRule: ContentRule?): String =
+            GSON.toJson(contentRule)
 
         @TypeConverter
-        fun stringToContentRule(json: String?) = GSON.fromJsonObject<ContentRule>(json)
+        fun stringToContentRule(json: String?) =
+            GSON.fromJsonObject<ContentRule>(json).getOrNull()
 
     }
 }

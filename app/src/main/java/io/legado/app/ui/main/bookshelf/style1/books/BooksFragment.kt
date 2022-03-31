@@ -14,7 +14,7 @@ import io.legado.app.constant.*
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.databinding.FragmentBooksBinding
-import io.legado.app.help.AppConfig
+import io.legado.app.help.config.AppConfig
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.book.audio.AudioPlayActivity
@@ -23,10 +23,12 @@ import io.legado.app.ui.book.read.ReadBookActivity
 import io.legado.app.ui.main.MainViewModel
 import io.legado.app.utils.*
 import io.legado.app.utils.viewbindingdelegate.viewBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.max
@@ -119,7 +121,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
                     3 -> list.sortedBy { it.order }
                     else -> list.sortedByDescending { it.durChapterTime }
                 }
-            }.catch {
+            }.flowOn(Dispatchers.Default).catch {
                 AppLog.put("书架更新出错", it)
             }.conflate().collect { list ->
                 binding.tvEmptyMsg.isGone = list.isNotEmpty()

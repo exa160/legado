@@ -20,9 +20,9 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.widget.AppCompatImageView
 import io.legado.app.R
 import io.legado.app.utils.getCompatColor
+import io.legado.app.utils.printOnDebug
+import io.legado.app.utils.spToPx
 
-import io.legado.app.utils.sp
-import timber.log.Timber
 import kotlin.math.min
 import kotlin.math.pow
 
@@ -151,10 +151,6 @@ class CircleImageView @JvmOverloads constructor(
 
         mReady = true
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            outlineProvider = OutlineProvider()
-        }
-
         if (mSetupPending) {
             setup()
             mSetupPending = false
@@ -205,7 +201,7 @@ class CircleImageView @JvmOverloads constructor(
         text?.let {
             textPaint.color = textColor
             textPaint.isFakeBoldText = textBold
-            textPaint.textSize = 15.sp.toFloat()
+            textPaint.textSize = 15f.spToPx()
             val fm = textPaint.fontMetrics
             canvas.drawText(
                 it,
@@ -318,7 +314,7 @@ class CircleImageView @JvmOverloads constructor(
             drawable.draw(canvas)
             bitmap
         } catch (e: Exception) {
-            Timber.e(e)
+            e.printOnDebug()
             null
         }
 

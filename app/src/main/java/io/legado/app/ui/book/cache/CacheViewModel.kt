@@ -16,11 +16,11 @@ import io.legado.app.constant.AppPattern
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
-import io.legado.app.help.AppConfig
+import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.BookHelp
 import io.legado.app.help.ContentProcessor
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.storage.AppWebDav
-import io.legado.app.model.NoStackTraceException
 import io.legado.app.utils.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ensureActive
@@ -28,7 +28,6 @@ import me.ag2s.epublib.domain.*
 import me.ag2s.epublib.epub.EpubWriter
 import me.ag2s.epublib.util.ResourceUtil
 import splitties.init.appCtx
-import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -71,7 +70,7 @@ class CacheViewModel(application: Application) : BaseViewModel(application) {
             exportProgress.remove(book.bookUrl)
             exportMsg[book.bookUrl] = it.localizedMessage ?: "ERROR"
             upAdapterLiveData.postValue(book.bookUrl)
-            Timber.e(it)
+            it.printOnDebug()
         }.onSuccess {
             exportProgress.remove(book.bookUrl)
             exportMsg[book.bookUrl] = context.getString(R.string.export_success)
@@ -143,7 +142,7 @@ class CacheViewModel(application: Application) : BaseViewModel(application) {
         book: Book,
         append: (text: String, srcList: ArrayList<Triple<String, Int, String>>?) -> Unit
     ) {
-        val useReplace = AppConfig.exportUseReplace
+        val useReplace = AppConfig.exportUseReplace && book.getUseReplaceRule()
         val contentProcessor = ContentProcessor.get(book.name, book.origin)
         val qy = "${book.name}\n${
             context.getString(R.string.author_show, book.getRealAuthor())
@@ -206,7 +205,7 @@ class CacheViewModel(application: Application) : BaseViewModel(application) {
             exportProgress.remove(book.bookUrl)
             exportMsg[book.bookUrl] = it.localizedMessage ?: "ERROR"
             upAdapterLiveData.postValue(book.bookUrl)
-            Timber.e(it)
+            it.printOnDebug()
         }.onSuccess {
             exportProgress.remove(book.bookUrl)
             exportMsg[book.bookUrl] = context.getString(R.string.export_success)
@@ -279,7 +278,7 @@ class CacheViewModel(application: Application) : BaseViewModel(application) {
                                 when {
                                     //正文模板
                                     file.name.equals("chapter.html", true)
-                                            || file.name.equals("chapter.xhtml", true) -> {
+                                        || file.name.equals("chapter.xhtml", true) -> {
                                         contentModel = file.readText(context)
                                     }
                                     //封面等其他模板
@@ -412,7 +411,7 @@ class CacheViewModel(application: Application) : BaseViewModel(application) {
         epubBook: EpubBook
     ) {
         //正文
-        val useReplace = AppConfig.exportUseReplace
+        val useReplace = AppConfig.exportUseReplace && book.getUseReplaceRule()
         val contentProcessor = ContentProcessor.get(book.name, book.origin)
         appDb.bookChapterDao.getChapterList(book.bookUrl).forEachIndexed { index, chapter ->
             scope.ensureActive()
@@ -431,10 +430,14 @@ class CacheViewModel(application: Application) : BaseViewModel(application) {
                         reSegment = false
                     )
                     .joinToString("\n")
+                val title = chapter.getDisplayTitle(
+                    contentProcessor.getTitleReplaceRules(),
+                    useReplace = useReplace
+                )
                 epubBook.addSection(
-                    chapter.title,
+                    title,
                     ResourceUtil.createChapterResource(
-                        chapter.title.replace("\uD83D\uDD12", ""),
+                        title.replace("\uD83D\uDD12", ""),
                         content1,
                         contentModel,
                         "Text/chapter_${index}.html"

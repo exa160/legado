@@ -6,11 +6,12 @@ import androidx.annotation.Keep
 import cn.hutool.crypto.digest.DigestUtil
 import cn.hutool.crypto.symmetric.AES
 import cn.hutool.crypto.symmetric.DESede
-import io.legado.app.BuildConfig
 import io.legado.app.constant.AppConst
 import io.legado.app.constant.AppConst.dateFormat
 import io.legado.app.constant.AppLog
 import io.legado.app.data.entities.BaseSource
+import io.legado.app.exception.NoStackTraceException
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.http.*
 import io.legado.app.model.Debug
 import io.legado.app.model.analyzeRule.AnalyzeUrl
@@ -22,7 +23,6 @@ import kotlinx.coroutines.runBlocking
 import org.jsoup.Connection
 import org.jsoup.Jsoup
 import splitties.init.appCtx
-import timber.log.Timber
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -54,7 +54,7 @@ interface JsExtensions {
                 analyzeUrl.getStrResponseAwait().body
             }.onFailure {
                 log("ajax(${urlStr}) error\n${it.stackTraceToString()}")
-                Timber.e(it)
+                it.printOnDebug()
             }.getOrElse {
                 it.msg
             }
@@ -90,7 +90,7 @@ interface JsExtensions {
                 analyzeUrl.getStrResponseAwait()
             }.onFailure {
                 log("connect(${urlStr}) error\n${it.stackTraceToString()}")
-                Timber.e(it)
+                it.printOnDebug()
             }.getOrElse {
                 StrResponse(analyzeUrl.url, it.localizedMessage)
             }
@@ -99,13 +99,13 @@ interface JsExtensions {
 
     fun connect(urlStr: String, header: String?): StrResponse {
         return runBlocking {
-            val headerMap = GSON.fromJsonObject<Map<String, String>>(header)
+            val headerMap = GSON.fromJsonObject<Map<String, String>>(header).getOrNull()
             val analyzeUrl = AnalyzeUrl(urlStr, headerMapF = headerMap, source = getSource())
             kotlin.runCatching {
                 analyzeUrl.getStrResponseAwait()
             }.onFailure {
                 log("ajax($urlStr,$header) error\n${it.stackTraceToString()}")
-                Timber.e(it)
+                it.printOnDebug()
             }.getOrElse {
                 StrResponse(analyzeUrl.url, it.localizedMessage)
             }
@@ -127,6 +127,35 @@ interface JsExtensions {
                 javaScript = js
             ).getStrResponse().body
         }
+    }
+
+    /**
+     * 可从网络，本地文件(阅读私有缓存目录和书籍保存位置支持相对路径)导入JavaScript脚本
+     */
+    fun importScript(path: String): String {
+        val result = when {
+            path.startsWith("http") -> cacheFile(path) ?: ""
+            path.isContentScheme() -> DocumentUtils.readText(appCtx, Uri.parse(path))
+            path.startsWith("/storage") -> FileUtils.readText(path)
+            else -> {
+                //相对路径
+                val jsPath = if (path.startsWith("/")) path else "/$path"
+                //先找书籍保存目录下有没有
+                val publicStoragePath = AppConfig.defaultBookTreeUri
+                val jsString = publicStoragePath?.let {
+                    if (it.isContentScheme()) {
+                        val fileUri = Uri.parse(it + URLEncoder.encode(jsPath, "UTF-8"))
+                        DocumentUtils.readText(appCtx, fileUri)
+                    } else {
+                        FileUtils.readText(it + jsPath)
+                    }
+                }
+                //私有目录
+                if (jsString.isNullOrBlank()) readTxtFile(path) else jsString
+            }
+        }
+        if (result.isBlank()) throw NoStackTraceException("$path 内容获取失败或者为空")
+        return result
     }
 
     /**
@@ -179,7 +208,7 @@ interface JsExtensions {
             FileUtils.createFolderIfNotExist(FileUtils.getCachePath()),
             "${MD5Utils.md5Encode16(url)}.${type}"
         )
-        FileUtils.deleteFile(zipPath)
+        FileUtils.delete(zipPath)
         val zipFile = FileUtils.createFileIfNotExist(zipPath)
         StringUtils.hexStringToByte(content).let {
             if (it.isNotEmpty()) {
@@ -365,11 +394,11 @@ interface JsExtensions {
             FileUtils.createFolderIfNotExist(FileUtils.getCachePath()),
             FileUtils.getNameExcludeExtension(zipPath)
         )
-        FileUtils.deleteFile(unzipPath)
+        FileUtils.delete(unzipPath)
         val zipFile = getFile(zipPath)
         val unzipFolder = FileUtils.createFolderIfNotExist(unzipPath)
         ZipUtils.unzipFile(zipFile, unzipFolder)
-        FileUtils.deleteFile(zipFile.absolutePath)
+        FileUtils.delete(zipFile.absolutePath)
         return unzipPath.substring(FileUtils.getCachePath().length)
     }
 
@@ -390,7 +419,7 @@ interface JsExtensions {
                 contents.deleteCharAt(contents.length - 1)
             }
         }
-        FileUtils.deleteFile(unzipFolder.absolutePath)
+        FileUtils.delete(unzipFolder.absolutePath)
         return contents.toString()
     }
 
@@ -481,7 +510,7 @@ interface JsExtensions {
             CacheManager.put(key, qTTF)
             return qTTF
         } catch (e: Exception) {
-            Timber.e(e, "获取字体处理类出错")
+            AppLog.put("获取字体处理类出错", e)
             throw e
         }
     }
@@ -518,9 +547,6 @@ interface JsExtensions {
         getSource()?.let {
             Debug.log(it.getKey(), msg.toString())
         } ?: Debug.log(msg.toString())
-        if (BuildConfig.DEBUG) {
-            Timber.d(msg.toString())
-        }
         AppLog.putDebug(msg.toString())
         return msg
     }
@@ -561,7 +587,7 @@ interface JsExtensions {
                 iv.encodeToByteArray()
             )
         } catch (e: Exception) {
-            Timber.e(e)
+            e.printOnDebug()
             log(e.localizedMessage ?: "aesDecodeToByteArrayERROR")
             null
         }
@@ -600,7 +626,7 @@ interface JsExtensions {
                 iv.encodeToByteArray()
             )
         } catch (e: Exception) {
-            Timber.e(e)
+            e.printOnDebug()
             log(e.localizedMessage ?: "aesDecodeToByteArrayERROR")
             null
         }
@@ -638,7 +664,7 @@ interface JsExtensions {
                 iv.encodeToByteArray()
             )
         } catch (e: Exception) {
-            Timber.e(e)
+            e.printOnDebug()
             log(e.localizedMessage ?: "aesEncodeToByteArrayERROR")
             null
         }
@@ -675,7 +701,7 @@ interface JsExtensions {
                 iv.encodeToByteArray()
             )
         } catch (e: Exception) {
-            Timber.e(e)
+            e.printOnDebug()
             log(e.localizedMessage ?: "aesEncodeToBase64ByteArrayERROR")
             null
         }

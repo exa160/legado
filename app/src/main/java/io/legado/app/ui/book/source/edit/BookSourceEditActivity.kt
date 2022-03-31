@@ -1,39 +1,34 @@
 package io.legado.app.ui.book.source.edit
 
 import android.app.Activity
-import android.graphics.Rect
 import android.os.Bundle
-import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
-import android.view.ViewTreeObserver
 import android.widget.EditText
-import android.widget.PopupWindow
 import androidx.activity.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.tabs.TabLayout
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import io.legado.app.R
 import io.legado.app.base.VMBaseActivity
-import io.legado.app.constant.AppConst
 import io.legado.app.constant.BookType
 import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.rule.*
 import io.legado.app.databinding.ActivityBookSourceEditBinding
-import io.legado.app.help.LocalConfig
+import io.legado.app.help.config.LocalConfig
+import io.legado.app.lib.dialogs.SelectItem
 import io.legado.app.lib.dialogs.alert
-import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.book.source.debug.BookSourceDebugActivity
 import io.legado.app.ui.document.HandleFileContract
 import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.qrcode.QrCodeResult
-import io.legado.app.ui.widget.KeyboardToolPop
 import io.legado.app.ui.widget.dialog.TextDialog
+import io.legado.app.ui.widget.dialog.UrlOptionDialog
+import io.legado.app.ui.widget.keyboard.KeyboardToolPop
 import io.legado.app.utils.*
 import io.legado.app.utils.viewbindingdelegate.viewBinding
-import kotlin.math.abs
 
 class BookSourceEditActivity :
     VMBaseActivity<ActivityBookSourceEditBinding, BookSourceEditViewModel>(false),
@@ -65,10 +60,12 @@ class BookSourceEditActivity :
         }
     }
 
-    private var mSoftKeyboardTool: PopupWindow? = null
-    private var mIsSoftKeyBoardShowing = false
+    private val softKeyboardTool by lazy {
+        KeyboardToolPop(this, this, binding.root, this)
+    }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
+        softKeyboardTool.attachToWindow(window)
         initView()
         viewModel.initData(intent) {
             upRecyclerView()
@@ -89,6 +86,7 @@ class BookSourceEditActivity :
 
     override fun onMenuOpened(featureId: Int, menu: Menu): Boolean {
         menu.findItem(R.id.menu_login)?.isVisible = !viewModel.bookSource?.loginUrl.isNullOrBlank()
+        menu.findItem(R.id.menu_auto_complete)?.isChecked = viewModel.autoComplete
         return super.onMenuOpened(featureId, menu)
     }
 
@@ -111,6 +109,7 @@ class BookSourceEditActivity :
                     }
                 }
             }
+            R.id.menu_auto_complete -> viewModel.autoComplete = !viewModel.autoComplete
             R.id.menu_copy_source -> sendToClip(GSON.toJson(getSource()))
             R.id.menu_paste_source -> viewModel.pasteSource { upRecyclerView(it) }
             R.id.menu_qr_code_camera -> qrCodeResult.launch()
@@ -137,8 +136,6 @@ class BookSourceEditActivity :
 
     private fun initView() {
         binding.recyclerView.setEdgeEffectColor(primaryColor)
-        mSoftKeyboardTool = KeyboardToolPop(this, AppConst.keyboardToolChars, this)
-        window.decorView.viewTreeObserver.addOnGlobalLayoutListener(KeyboardOnGlobalChangeListener())
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
         binding.tabLayout.setBackgroundColor(backgroundColor)
@@ -174,7 +171,7 @@ class BookSourceEditActivity :
 
     override fun onDestroy() {
         super.onDestroy()
-        mSoftKeyboardTool?.dismiss()
+        softKeyboardTool.dismiss()
     }
 
     private fun setEditEntities(tabPosition: Int?) {
@@ -326,64 +323,95 @@ class BookSourceEditActivity :
             when (it.key) {
                 "searchUrl" -> source.searchUrl = it.value
                 "checkKeyWord" -> searchRule.checkKeyWord = it.value
-                "bookList" -> searchRule.bookList = it.value
-                "name" -> searchRule.name = it.value
-                "author" -> searchRule.author = it.value
-                "kind" -> searchRule.kind = it.value
-                "intro" -> searchRule.intro = it.value
-                "updateTime" -> searchRule.updateTime = it.value
-                "wordCount" -> searchRule.wordCount = it.value
-                "lastChapter" -> searchRule.lastChapter = it.value
-                "coverUrl" -> searchRule.coverUrl = it.value
-                "bookUrl" -> searchRule.bookUrl = it.value
+                "bookList" -> searchRule.bookList = it.value ?: ""
+                "name" -> searchRule.name =
+                    viewModel.ruleComplete(it.value, searchRule.bookList)
+                "author" -> searchRule.author =
+                    viewModel.ruleComplete(it.value, searchRule.bookList)
+                "kind" -> searchRule.kind =
+                    viewModel.ruleComplete(it.value, searchRule.bookList)
+                "intro" -> searchRule.intro =
+                    viewModel.ruleComplete(it.value, searchRule.bookList)
+                "updateTime" -> searchRule.updateTime =
+                    viewModel.ruleComplete(it.value, searchRule.bookList)
+                "wordCount" -> searchRule.wordCount =
+                    viewModel.ruleComplete(it.value, searchRule.bookList)
+                "lastChapter" -> searchRule.lastChapter =
+                    viewModel.ruleComplete(it.value, searchRule.bookList)
+                "coverUrl" -> searchRule.coverUrl =
+                    viewModel.ruleComplete(it.value, searchRule.bookList, 3)
+                "bookUrl" -> searchRule.bookUrl =
+                    viewModel.ruleComplete(it.value, searchRule.bookList, 2)
             }
         }
         findEntities.forEach {
             when (it.key) {
                 "exploreUrl" -> source.exploreUrl = it.value
-                "bookList" -> exploreRule.bookList = it.value
-                "name" -> exploreRule.name = it.value
-                "author" -> exploreRule.author = it.value
-                "kind" -> exploreRule.kind = it.value
-                "intro" -> exploreRule.intro = it.value
-                "updateTime" -> exploreRule.updateTime = it.value
-                "wordCount" -> exploreRule.wordCount = it.value
-                "lastChapter" -> exploreRule.lastChapter = it.value
-                "coverUrl" -> exploreRule.coverUrl = it.value
-                "bookUrl" -> exploreRule.bookUrl = it.value
+                "bookList" -> exploreRule.bookList = it.value ?: ""
+                "name" -> exploreRule.name =
+                    viewModel.ruleComplete(it.value, exploreRule.bookList)
+                "author" -> exploreRule.author =
+                    viewModel.ruleComplete(it.value, exploreRule.bookList)
+                "kind" -> exploreRule.kind =
+                    viewModel.ruleComplete(it.value, exploreRule.bookList)
+                "intro" -> exploreRule.intro =
+                    viewModel.ruleComplete(it.value, exploreRule.bookList)
+                "updateTime" -> exploreRule.updateTime =
+                    viewModel.ruleComplete(it.value, exploreRule.bookList)
+                "wordCount" -> exploreRule.wordCount =
+                    viewModel.ruleComplete(it.value, exploreRule.bookList)
+                "lastChapter" -> exploreRule.lastChapter =
+                    viewModel.ruleComplete(it.value, exploreRule.bookList)
+                "coverUrl" -> exploreRule.coverUrl =
+                    viewModel.ruleComplete(it.value, exploreRule.bookList, 3)
+                "bookUrl" -> exploreRule.bookUrl =
+                    viewModel.ruleComplete(it.value, exploreRule.bookList, 2)
             }
         }
         infoEntities.forEach {
             when (it.key) {
-                "init" -> bookInfoRule.init = it.value
-                "name" -> bookInfoRule.name = it.value
-                "author" -> bookInfoRule.author = it.value
-                "kind" -> bookInfoRule.kind = it.value
-                "intro" -> bookInfoRule.intro = it.value
-                "updateTime" -> bookInfoRule.updateTime = it.value
-                "wordCount" -> bookInfoRule.wordCount = it.value
-                "lastChapter" -> bookInfoRule.lastChapter = it.value
-                "coverUrl" -> bookInfoRule.coverUrl = it.value
-                "tocUrl" -> bookInfoRule.tocUrl = it.value
+                "init" -> bookInfoRule.init = it.value ?: ""
+                "name" -> bookInfoRule.name = viewModel.ruleComplete(it.value, bookInfoRule.init)
+                "author" -> bookInfoRule.author =
+                    viewModel.ruleComplete(it.value, bookInfoRule.init)
+                "kind" -> bookInfoRule.kind =
+                    viewModel.ruleComplete(it.value, bookInfoRule.init)
+                "intro" -> bookInfoRule.intro =
+                    viewModel.ruleComplete(it.value, bookInfoRule.init)
+                "updateTime" -> bookInfoRule.updateTime =
+                    viewModel.ruleComplete(it.value, bookInfoRule.init)
+                "wordCount" -> bookInfoRule.wordCount =
+                    viewModel.ruleComplete(it.value, bookInfoRule.init)
+                "lastChapter" -> bookInfoRule.lastChapter =
+                    viewModel.ruleComplete(it.value, bookInfoRule.init)
+                "coverUrl" -> bookInfoRule.coverUrl =
+                    viewModel.ruleComplete(it.value, bookInfoRule.init, 3)
+                "tocUrl" -> bookInfoRule.tocUrl =
+                    viewModel.ruleComplete(it.value, bookInfoRule.init, 2)
                 "canReName" -> bookInfoRule.canReName = it.value
             }
         }
         tocEntities.forEach {
             when (it.key) {
-                "chapterList" -> tocRule.chapterList = it.value
-                "chapterName" -> tocRule.chapterName = it.value
-                "chapterUrl" -> tocRule.chapterUrl = it.value
+                "chapterList" -> tocRule.chapterList = it.value ?: ""
+                "chapterName" -> tocRule.chapterName =
+                    viewModel.ruleComplete(it.value, tocRule.chapterList)
+                "chapterUrl" -> tocRule.chapterUrl =
+                    viewModel.ruleComplete(it.value, tocRule.chapterList, 2)
                 "isVolume" -> tocRule.isVolume = it.value
                 "updateTime" -> tocRule.updateTime = it.value
                 "isVip" -> tocRule.isVip = it.value
                 "isPay" -> tocRule.isPay = it.value
-                "nextTocUrl" -> tocRule.nextTocUrl = it.value
+                "nextTocUrl" -> tocRule.nextTocUrl =
+                    viewModel.ruleComplete(it.value, tocRule.chapterList, 2)
             }
         }
         contentEntities.forEach {
             when (it.key) {
-                "content" -> contentRule.content = it.value
-                "nextContentUrl" -> contentRule.nextContentUrl = it.value
+                "content" -> contentRule.content =
+                    viewModel.ruleComplete(it.value)
+                "nextContentUrl" -> contentRule.nextContentUrl =
+                    viewModel.ruleComplete(it.value, type = 2)
                 "webJs" -> contentRule.webJs = it.value
                 "sourceRegex" -> contentRule.sourceRegex = it.value
                 "replaceRegex" -> contentRule.replaceRegex = it.value
@@ -407,7 +435,31 @@ class BookSourceEditActivity :
         return true
     }
 
-    private fun insertText(text: String) {
+    override fun helpActions(): List<SelectItem<String>> {
+        return arrayListOf(
+            SelectItem("插入URL参数", "urlOption"),
+            SelectItem("书源教程", "ruleHelp"),
+            SelectItem("js教程", "jsHelp"),
+            SelectItem("正则教程", "regexHelp"),
+            SelectItem("选择文件", "selectFile"),
+        )
+    }
+
+    override fun onHelpActionSelect(action: String) {
+        when (action) {
+            "urlOption" -> UrlOptionDialog(this) {
+                sendText(it)
+            }.show()
+            "ruleHelp" -> showHelp("ruleHelp")
+            "jsHelp" -> showHelp("jsHelp")
+            "regexHelp" -> showHelp("regexHelp")
+            "selectFile" -> selectDoc.launch {
+                mode = HandleFileContract.FILE
+            }
+        }
+    }
+
+    override fun sendText(text: String) {
         if (text.isBlank()) return
         val view = window.decorView.findFocus()
         if (view is EditText) {
@@ -422,68 +474,10 @@ class BookSourceEditActivity :
         }
     }
 
-    override fun sendText(text: String) {
-        if (text == AppConst.keyboardToolChars[0]) {
-            showHelpDialog()
-        } else {
-            insertText(text)
-        }
-    }
-
-    private fun showHelpDialog() {
-        val items = arrayListOf("插入URL参数", "书源教程", "js教程", "正则教程", "选择文件")
-        selector(getString(R.string.help), items) { _, index ->
-            when (index) {
-                0 -> insertText(AppConst.urlOption)
-                1 -> showHelp("ruleHelp")
-                2 -> showHelp("jsHelp")
-                3 -> showHelp("regexHelp")
-                4 -> selectDoc.launch {
-                    mode = HandleFileContract.FILE
-                }
-            }
-        }
-    }
-
     private fun showHelp(fileName: String) {
         //显示目录help下的帮助文档
         val mdText = String(assets.open("help/${fileName}.md").readBytes())
         showDialogFragment(TextDialog(mdText, TextDialog.Mode.MD))
-    }
-
-    private fun showKeyboardTopPopupWindow() {
-        mSoftKeyboardTool?.let {
-            if (it.isShowing) return
-            if (!isFinishing) {
-                it.showAtLocation(binding.root, Gravity.BOTTOM, 0, 0)
-            }
-        }
-    }
-
-    private fun closePopupWindow() {
-        mSoftKeyboardTool?.dismiss()
-    }
-
-    private inner class KeyboardOnGlobalChangeListener : ViewTreeObserver.OnGlobalLayoutListener {
-        override fun onGlobalLayout() {
-            val rect = Rect()
-            // 获取当前页面窗口的显示范围
-            window.decorView.getWindowVisibleDisplayFrame(rect)
-            val screenHeight = this@BookSourceEditActivity.windowSize.heightPixels
-            val keyboardHeight = screenHeight - rect.bottom // 输入法的高度
-            val preShowing = mIsSoftKeyBoardShowing
-            if (abs(keyboardHeight) > screenHeight / 5) {
-                mIsSoftKeyBoardShowing = true // 超过屏幕五分之一则表示弹出了输入法
-                binding.recyclerView.setPadding(0, 0, 0, 100)
-                showKeyboardTopPopupWindow()
-            } else {
-                mIsSoftKeyBoardShowing = false
-                binding.recyclerView.setPadding(0, 0, 0, 0)
-                if (preShowing) {
-                    closePopupWindow()
-                }
-            }
-        }
     }
 
 }

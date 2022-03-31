@@ -19,7 +19,11 @@ import androidx.core.view.isVisible
 import io.legado.app.R
 import io.legado.app.constant.PreferKey
 import io.legado.app.databinding.ViewReadMenuBinding
-import io.legado.app.help.*
+import io.legado.app.help.IntentData
+import io.legado.app.help.config.AppConfig
+import io.legado.app.help.config.LocalConfig
+import io.legado.app.help.config.ReadBookConfig
+import io.legado.app.help.config.ThemeConfig
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.*
 import io.legado.app.model.ReadBook
@@ -82,7 +86,7 @@ class ReadMenu @JvmOverloads constructor(
         }
         initAnimation()
         val brightnessBackground = GradientDrawable()
-        brightnessBackground.cornerRadius = 5F.dp
+        brightnessBackground.cornerRadius = 5F.dpToPx()
         brightnessBackground.setColor(ColorUtils.adjustAlpha(bgColor, 0.5f))
         llBrightness.background = brightnessBackground
         llBottomBg.setBackgroundColor(bgColor)
